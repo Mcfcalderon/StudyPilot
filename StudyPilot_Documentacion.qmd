@@ -1,0 +1,422 @@
+---
+title: "StudyPilot — Plataforma Inteligente de Estudio"
+subtitle: "Documentación Técnica del Proyecto"
+author: "Marvin Andy Calderón Flores"
+date: "2026-06-08"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-title: "Contenido"
+    number-sections: true
+    theme: cosmo
+    code-fold: true
+    smooth-scroll: true
+  pdf:
+    toc: true
+    number-sections: true
+    documentclass: article
+    papersize: a4
+    geometry:
+      - margin=2.5cm
+    fontsize: 11pt
+lang: es
+---
+
+# Resumen Ejecutivo
+
+**StudyPilot** es una plataforma web de organización y estudio inteligente desarrollada con R Shiny, diseñada específicamente para estudiantes universitarios. La aplicación integra inteligencia artificial (Google Gemini) para automatizar la extracción de información de sílabos y horarios desde documentos PDF, eliminar la carga manual de datos, y ofrecer herramientas de estudio como Pomodoro, exámenes de práctica generados por IA, y simulación de promedios en tiempo real.
+
+La plataforma está desplegada en la nube (shinyapps.io) con persistencia en MongoDB Atlas, permitiendo acceso desde cualquier dispositivo con navegador web. Cada usuario cuenta con datos completamente aislados mediante autenticación propia y contraseñas hasheadas.
+
+**URL de la aplicación:** <https://marvin-calderon.shinyapps.io/plan-estudios-ciclo8/>
+
+# Problemática
+
+## Contexto
+
+En el entorno académico universitario actual, los estudiantes enfrentan una carga creciente de responsabilidades: múltiples cursos con evaluaciones de distintos pesos, trabajos grupales, laboratorios, prácticas calificadas, y exámenes parciales y finales, todo distribuido en un ciclo de 16 semanas. La gestión manual de esta información —fechas, pesos porcentuales, promedios necesarios, horarios— consume tiempo valioso que podría dedicarse al estudio efectivo.
+
+## Problemas identificados
+
+1.  **Dispersión de información académica**: Los sílabos, horarios, evaluaciones y notas están en documentos separados (PDFs, correos, plataformas institucionales) sin una vista unificada.
+
+2.  **Cálculo manual de promedios**: Los estudiantes realizan cálculos manuales para saber su promedio parcial y cuánto necesitan en evaluaciones futuras para aprobar, proceso que es propenso a errores.
+
+3.  **Falta de visibilidad temporal**: No existe una herramienta que muestre claramente qué evaluaciones se aproximan, cuáles están atrasadas, y cuál es la prioridad real de cada tarea.
+
+4.  **Ingreso manual tedioso**: Cargar manualmente los datos de 6+ cursos (nombre, código, evaluaciones, pesos, semanas, horarios) al inicio de cada ciclo requiere horas de trabajo.
+
+5.  **Herramientas genéricas**: Las aplicaciones existentes no están adaptadas al sistema universitario peruano (escala de 0-20, estructura de sílabos UTEC, consolidado de matrícula).
+
+# Análisis Comparativo
+
+## Aplicaciones existentes en el mercado
+
+Se realizó un benchmarking de las principales aplicaciones de planificación y estudio disponibles en 2025-2026:
+
+| Característica | MyStudyLife | Notion | PowerPlanner | Todoist | **StudyPilot** |
+|----|----|----|----|----|----|
+| **Precio** | Gratis | Freemium | \$1.99 | Freemium | **Gratis** |
+| **Plataforma** | iOS, Android, Web | Multiplataforma | iOS, Android, Win | Multiplataforma | **Web (cualquier dispositivo)** |
+| **Extracción IA de sílabos** | No | No | No | No | **Sí** |
+| **Horario desde PDF** | No | No | No | No | **Sí** |
+| **Pomodoro integrado** | Sí | No | No | No | **Sí** |
+| **Simulador de promedios** | No | No | Sí (GPA) | No | **Sí (escala 0-20)** |
+| **Exámenes de práctica IA** | No | No | No | No | **Sí** |
+| **Chat IA académico** | No | Sí (pagado) | No | No | **Sí** |
+| **Multi-usuario con privacidad** | Sí | Sí | Sí | Sí | **Sí** |
+| **Adaptado a universidades Perú** | No | No | No | No | **Sí** |
+
+: Comparativa de StudyPilot vs. competidores principales
+
+## Ventajas diferenciales de StudyPilot
+
+1.  **Automatización con IA**: La extracción automática de sílabos y horarios desde PDF es una funcionalidad que ninguna otra aplicación ofrece. El estudiante sube su consolidado de matrícula y sus sílabos, y la app genera automáticamente cursos, evaluaciones con pesos, temas, y horario visual.
+
+2.  **Exámenes de práctica generados por IA**: Para cualquier curso, la app genera preguntas de opción múltiple y abiertas basadas en los temas del sílabo, sin necesidad de banco de preguntas manual.
+
+3.  **Contexto universitario peruano**: Escala de 0-20, cálculo de "cuánto necesitas para aprobar", estructura de evaluaciones (PC, EP, EF, EC, TF), formato de sílabos UTEC.
+
+4.  **Zero-config**: No requiere instalación. Acceso inmediato desde cualquier navegador.
+
+# Arquitectura del Sistema
+
+## Diagrama de arquitectura
+
+```{r}
+#| label: fig-arquitectura
+#| fig-cap: "Arquitectura general de StudyPilot"
+#| echo: false
+library(DiagrammeR)
+grViz('
+digraph architecture {
+  graph [rankdir=TB, fontname="Helvetica", bgcolor="white", pad=0.3]
+  node [fontname="Helvetica", fontsize=11, style=filled, shape=box, margin="0.15,0.08"]
+  edge [fontname="Helvetica", fontsize=9]
+
+  U [label="Usuario\\nNavegador Web", fillcolor="#e0e7ff", color="#4338ca"]
+  S [label="shinyapps.io\\n(Hosting Cloud)", fillcolor="#dbeafe", color="#2563eb"]
+  APP [label="app.R — Servidor Shiny\\n(~2700 lineas)", fillcolor="#fef3c7", color="#d97706"]
+  DB [label="MongoDB Atlas\\n(Base de datos)", fillcolor="#d1fae5", color="#059669", shape=cylinder]
+  AI [label="Google Gemini API\\n(IA generativa)", fillcolor="#fce7f3", color="#db2777"]
+  PDF [label="pdftools\\n(Procesamiento PDF)", fillcolor="#f3e8ff", color="#7c3aed"]
+
+  subgraph cluster_frontend {
+    label="Frontend — 10 Pestanas"; style=filled; fillcolor="#f8fafc"; color="#94a3b8";
+    UI1 [label="Dashboard", fillcolor="#bfdbfe"]
+    UI2 [label="Pomodoro", fillcolor="#fecaca"]
+    UI3 [label="Modo Examen", fillcolor="#bbf7d0"]
+    UI4 [label="IA / Chat", fillcolor="#fce7f3"]
+    UI5 [label="Examen Practica", fillcolor="#e9d5ff"]
+    UI6 [label="Actividades", fillcolor="#fed7aa"]
+    UI7 [label="Notas", fillcolor="#a5f3fc"]
+    UI8 [label="Semanal", fillcolor="#fde68a"]
+    UI9 [label="Horario", fillcolor="#c7d2fe"]
+    UI10 [label="Cursos", fillcolor="#d9f99d"]
+  }
+
+  subgraph cluster_backend {
+    label="Backend"; style=filled; fillcolor="#fefce8"; color="#ca8a04";
+    AUTH [label="Autenticacion\\nsodium hashing", fillcolor="#fef08a"]
+    CRUD [label="CRUD MongoDB\\n16 funciones", fillcolor="#fef08a"]
+    AIPROC [label="Procesamiento IA\\n5 funciones", fillcolor="#fef08a"]
+  }
+
+  subgraph cluster_db {
+    label="Colecciones MongoDB"; style=filled; fillcolor="#ecfdf5"; color="#059669";
+    node [shape=cylinder, fillcolor="#a7f3d0"]
+    C1 [label="courses"] C2 [label="activities"] C3 [label="grades"]
+    C4 [label="users"] C5 [label="study_notes"] C6 [label="schedules"]
+  }
+
+  U -> S [label="HTTPS"]
+  S -> APP [label="R Shiny"]
+  APP -> DB [label="mongolite"]
+  APP -> AI [label="ellmer"]
+  APP -> PDF [label="pdftools"]
+  APP -> {UI1 UI2 UI3 UI4 UI5 UI6 UI7 UI8 UI9 UI10} [style=dashed, color="#94a3b8"]
+  APP -> {AUTH CRUD AIPROC} [color="#ca8a04"]
+  CRUD -> {C1 C2 C3 C4 C5 C6} [color="#059669"]
+}
+')
+```
+
+## Stack tecnológico
+
+| Componente | Tecnología | Justificación |
+|----|----|----|
+| **Lenguaje** | R 4.5+ | Ecosistema rico para datos y estadísticas |
+| **Framework Web** | Shiny + bslib (Bootstrap 5) | Desarrollo rápido de apps web interactivas |
+| **Base de datos** | MongoDB Atlas (cloud) | NoSQL flexible, tier gratuito, sin servidor |
+| **IA** | Google Gemini 2.5 Flash (via `ellmer`) | Extracción de texto, generación de preguntas, resúmenes |
+| **Procesamiento PDF** | `pdftools` | Extracción de texto de sílabos y consolidados |
+| **Seguridad** | `sodium` (Argon2/scrypt) | Hashing de contraseñas |
+| **Interactividad** | `shinyjs`, JavaScript | UI dinámica, Pomodoro timer |
+| **Deployment** | shinyapps.io (Posit) | Hosting gratuito, deployment desde RStudio |
+| **Visualización** | `DT`, HTML/CSS custom | Tablas interactivas, cards, grilla de horario |
+
+## Estructura de archivos
+
+```{r}
+#| label: fig-estructura
+#| fig-cap: "Estructura de archivos del proyecto StudyPilot"
+#| echo: false
+grViz('
+digraph filetree {
+  graph [rankdir=LR, fontname="Helvetica", bgcolor="white", pad=0.2, nodesep=0.15, ranksep=0.6]
+  node [fontname="Consolas", fontsize=10, style=filled, shape=box, margin="0.1,0.05"]
+  edge [arrowhead=none, color="#94a3b8"]
+
+  ROOT [label="App Estudio/", fillcolor="#fef3c7", color="#d97706", fontsize=12]
+
+  APP [label="app.R\n~2700 lineas", fillcolor="#dbeafe", color="#2563eb"]
+  GLOBAL [label="global.R\nConfig del ciclo", fillcolor="#dbeafe", color="#2563eb"]
+  DB [label="db_mongo.R\n16 funciones", fillcolor="#d1fae5", color="#059669"]
+  AI [label="ai_functions.R\n5 funciones IA", fillcolor="#fce7f3", color="#db2777"]
+  EXAM [label="exam_bank.R\n33 preguntas", fillcolor="#f3e8ff", color="#7c3aed"]
+  STUDY [label="study_guides.R\nGuias de estudio", fillcolor="#f3e8ff", color="#7c3aed"]
+  GCAL [label="google_cal.R\nCalendar sync", fillcolor="#e0e7ff", color="#4338ca"]
+
+  WWW [label="www/", fillcolor="#fef3c7", color="#d97706"]
+  CSS [label="custom.css\n~20 KB", fillcolor="#fed7aa", color="#ea580c"]
+  JS [label="pomodoro.js\n~10 KB", fillcolor="#fed7aa", color="#ea580c"]
+
+  ROOT -> {APP GLOBAL DB AI EXAM STUDY GCAL WWW}
+  WWW -> {CSS JS}
+}
+')
+```
+
+## Flujo de datos
+
+```{r}
+#| label: fig-flujo
+#| fig-cap: "Flujo de datos principal: desde silabo PDF hasta dashboard"
+#| echo: false
+grViz('
+digraph flujo {
+  graph [rankdir=TB, fontname="Helvetica", bgcolor="white", pad=0.3, nodesep=0.4]
+  node [fontname="Helvetica", fontsize=10, style=filled, shape=box, margin="0.12,0.06"]
+  edge [fontname="Helvetica", fontsize=9]
+
+  S1 [label="1. Usuario sube\\nsilabo PDF", fillcolor="#e0e7ff", color="#4338ca"]
+  S2 [label="2. pdftools\\nextrae texto", fillcolor="#f3e8ff", color="#7c3aed"]
+  S3 [label="3. Envia a Gemini:\\nheader + eval + temas", fillcolor="#fce7f3", color="#db2777"]
+  S4 [label="4. IA retorna JSON:\\ncurso, evaluaciones, temas", fillcolor="#fce7f3", color="#db2777"]
+  S5 [label="5. Muestra preview\\nal usuario", fillcolor="#fef3c7", color="#d97706"]
+  S6 [label="6. Usuario confirma\\ny guarda", fillcolor="#e0e7ff", color="#4338ca"]
+  S7 [label="7. Inserta en MongoDB:\\ncurso + actividades + notas", fillcolor="#d1fae5", color="#059669"]
+  S8 [label="8. Dashboard\\nse actualiza", fillcolor="#dbeafe", color="#2563eb"]
+  S9 [label="9. Usuario ingresa\\ncalificaciones", fillcolor="#e0e7ff", color="#4338ca"]
+  S10 [label="10. Lee grades +\\nactivities de MongoDB", fillcolor="#d1fae5", color="#059669"]
+  S11 [label="11. Calcula promedio\\nponderado", fillcolor="#fef3c7", color="#d97706"]
+  S12 [label="12. Muestra promedio y\\nnecesitas X para aprobar", fillcolor="#bbf7d0", color="#16a34a"]
+
+  S1 -> S2 -> S3 -> S4 -> S5 -> S6 -> S7 -> S8
+  S8 -> S9 [style=dashed, label="Despues"]
+  S9 -> S10 -> S11 -> S12
+}
+')
+```
+
+# Funcionalidades Detalladas
+
+## Creación de cursos desde sílabo (IA) {#sec-silabos}
+
+El usuario sube un PDF de sílabo y la IA extrae automáticamente:
+
+- Nombre y código del curso
+- Créditos y profesor
+- Sistema de evaluación (nombre, código, peso %, semana, tipo)
+- Temas del curso
+
+La función `ai_extract_syllabus()` utiliza extracción inteligente de secciones: identifica la sección de "DATOS GENERALES", "TEMAS", y "SISTEMA DE EVALUACIÓN" por separado, evitando el truncamiento de información que ocurre al enviar solo los primeros N caracteres del documento.
+
+## Dashboard {#sec-dashboard}
+
+Vista consolidada del progreso académico:
+
+- **Línea temporal del ciclo** (16 semanas, con semana actual resaltada)
+- **KPIs en tarjetas**: Progreso %, Pendientes, Atrasadas, Alta Prioridad, Semanas restantes, Promedio general
+- **Tabla de próximas actividades** ordenadas por fecha y prioridad
+
+## Pomodoro Timer {#sec-pomodoro}
+
+Implementado en JavaScript para precisión del timer:
+
+- Duración configurable (25/50 min)
+- Pausa y reanudación
+- Deshacer última sesión
+- Música ambiental (white noise, rain, café)
+- Notificación sonora al completar
+- Indicador visual de sesiones completadas (dots)
+- Registro de sesiones en MongoDB por curso
+
+## Modo Examen {#sec-modo-examen}
+
+Para preparación de evaluaciones específicas:
+
+- Selector de examen próximo
+- Checklist de temas del curso (persistente en MongoDB)
+- Barra de progreso visual
+- Guías de estudio por tema
+- Integración con Pomodoro para sesiones de estudio
+
+## Examen de Práctica {#sec-examen-practica}
+
+Generación de exámenes con preguntas de opción múltiple y abiertas:
+
+- **Banco hardcodeado** para Ética (33 preguntas curadas manualmente)
+- **Generación con IA** para cualquier otro curso (basada en temas del sílabo)
+- Calificación automática con retroalimentación y explicaciones
+- Spinner de carga mientras la IA genera preguntas (\~15-30 seg)
+
+## Inteligencia Artificial {#sec-ia}
+
+- **Chat flotante**: Asistente IA contextual para consultas académicas
+- **Resúmenes automáticos**: Genera resumen, conceptos clave, mapa conceptual Mermaid y preguntas de repaso
+- **Generación de preguntas**: Crea preguntas de examen a partir de material de estudio
+- **Extracción de sílabos**: Parsea PDFs de sílabos universitarios con extracción inteligente por secciones
+- **Extracción de horarios**: Parsea consolidados de matrícula con retry automático ante rate limiting
+
+## Notas y Calificaciones {#sec-notas}
+
+- Input numérico (0-20) para cada evaluación de cada curso
+- Cálculo automático de promedio ponderado: $$\bar{x} = \frac{\sum_{i=1}^{n} \text{nota}_i \times \text{peso}_i}{\sum_{i=1}^{n} \text{peso}_i}$$
+- Indicador visual: "Necesitas X en el Y% restante para aprobar"
+- Spinner "Calculando promedio..." al guardar (sin recargar la página)
+- Persistencia por usuario en MongoDB
+
+## Actividades {#sec-actividades}
+
+- Vista de todas las evaluaciones con filtros (curso, tipo, estado, prioridad)
+- Marcar como completada con notificación visual
+- Editar evaluaciones (nombre, peso, fecha) via modal
+- Eliminar evaluaciones con confirmación
+- Agregar actividades manuales
+
+## Horario {#sec-horario}
+
+- **Extracción desde PDF con IA**: Sube el consolidado de matrícula y genera horario automáticamente
+- **Retry automático**: Si la API devuelve error 429 (rate limit), espera y reintenta hasta 3 veces
+- **Sincronización con Google Calendar**: Integración ICS
+- **Visualización en tabla**: Día, hora, curso, aula con colores por curso
+- Descarga en formato `.ics`
+
+## Gestión de Cursos {#sec-cursos}
+
+- Crear cursos manualmente o desde sílabo (IA)
+- Eliminar cursos con limpieza completa de datos relacionados (grades, activities, notes, syllabi, exam_checks, pomo_sessions)
+- Validación de duplicados al subir sílabos (reemplaza si ya existe)
+- Cards por curso con temas expandibles
+
+# Seguridad y Privacidad
+
+## Autenticación
+
+- Sistema custom de login/registro (sin dependencias externas como shinymanager)
+- Contraseñas hasheadas con **sodium** (formato scrypt `$7$...`)
+- Migración automática: contraseñas legacy en texto plano se hashean al primer login exitoso
+- Overlay de autenticación con animación fade
+
+## Aislamiento de datos por usuario
+
+Todas las funciones de acceso a MongoDB incluyen filtro por `user_id`:
+
+``` r
+# Ejemplo: todas las queries filtran por usuario
+mg_activities_all <- function(uid) {
+  a <- mongo_col("activities")
+  result <- a$find(query = '{"user_id":"<uid>"}', sort = '{"date":1}')
+  result
+}
+```
+
+- 16 funciones `mg_*` en `db_mongo.R` reciben `uid` como primer parámetro
+- 37+ llamadas en `app.R` actualizadas con helper `uid()`
+- Helper reactivo: `uid <- function() { auth_user()$user }`
+
+## Base de datos
+
+- MongoDB Atlas (cloud) con conexión encriptada (TLS/SSL via URI `mongodb+srv://`)
+- 9 colecciones: `users`, `courses`, `activities`, `grades`, `study_notes`, `syllabi`, `schedules`, `exam_checks`, `pomo_sessions`
+- Connection pooling: conexiones reutilizadas por colección en `.mongo_cache`
+
+# Limitaciones Actuales
+
+## Técnicas
+
+1.  **Sin modo offline**: La app requiere conexión a internet y acceso a MongoDB Atlas para cualquier operación.
+2.  **Patrón `globalenv()`**: Las variables compartidas (`courses`, `course_topics`) se almacenan en el environment global de R, lo cual puede causar problemas en entornos multi-worker (shinyapps.io planes superiores).
+3.  **Timer Pomodoro**: Depende de JavaScript del navegador; puede perder precisión si el usuario cambia de pestaña (browsers throttle inactive tabs).
+4.  **PDFs de imagen**: `pdftools` no puede leer PDFs basados en imagen (escaneados). Solo funciona con PDFs de texto nativo (generados digitalmente).
+
+## Funcionales
+
+5.  **Evaluaciones individuales**: Solo se pueden editar una a la vez via modal, no hay edición en masa.
+6.  **Sin notificaciones push**: Las funciones de email (`blastula`) existen pero no se activan periódicamente por falta de scheduler.
+7.  **API rate limiting**: El tier gratuito de Gemini permite 15 solicitudes/min y 1,500/día. Uso intensivo puede generar errores HTTP 429 (mitigado con retry automático).
+8.  **Escala fija**: Calificaciones sobre 20 (sistema peruano) hardcodeado — no configurable por el usuario.
+
+## De UX
+
+9.  **Sin recuperación de contraseña**: No hay flujo de "olvidé mi contraseña" (requiere infraestructura de email).
+10. **Un sílabo a la vez**: No soporta carga batch de múltiples PDFs simultáneamente.
+11. **Extracción no determinística**: La IA puede devolver resultados ligeramente diferentes para el mismo PDF en distintas ejecuciones.
+
+# Trabajo Futuro
+
+| Prioridad | Mejora | Complejidad |
+|----|----|----|
+| Alta | Modo offline con Service Workers (PWA) | Alta |
+| Alta | Recuperación de contraseña via email | Media |
+| Alta | Escala de calificaciones configurable (0-20, 0-100, GPA 4.0) | Baja |
+| Media | Notificaciones push de recordatorio de evaluaciones | Media |
+| Media | Dashboard de analytics (gráficos de rendimiento, tiempo de estudio) | Media |
+| Media | Carga batch de múltiples sílabos | Baja |
+| Baja | Integración con LMS (Canvas, Moodle) | Alta |
+| Baja | App móvil nativa o Progressive Web App | Alta |
+| Baja | Spaced repetition integrado con guías de estudio | Media |
+| Baja | Compartir horario entre estudiantes del mismo grupo | Baja |
+
+# Conclusiones
+
+StudyPilot resuelve un problema real que enfrentan los estudiantes universitarios: la dispersión de información académica y la carga manual de gestión del ciclo. A diferencia de aplicaciones genéricas como MyStudyLife, Notion o Todoist, StudyPilot automatiza el proceso más tedioso — la carga de datos desde sílabos y horarios — mediante inteligencia artificial.
+
+La plataforma integra en un solo lugar las funcionalidades que normalmente requieren 3-4 aplicaciones separadas: planificación (Google Calendar), estudio enfocado (Forest), gestión de notas (PowerPlanner), y material de estudio (Notion). Todo esto accesible desde cualquier navegador, sin instalación, y con datos privados por usuario.
+
+El proyecto demuestra la viabilidad de construir aplicaciones web completas y funcionales usando el ecosistema de R (Shiny, bslib, mongolite, ellmer) combinado con servicios cloud (MongoDB Atlas, Google Gemini, shinyapps.io), todo con costo cero para el usuario final.
+
+# Anexos
+
+## Dependencias del proyecto
+
+```{r}
+#| eval: false
+# Paquetes principales
+library(shiny)        # Framework web
+library(bslib)        # Bootstrap 5 UI
+library(DT)           # Tablas interactivas
+library(mongolite)    # MongoDB driver
+library(ellmer)       # Google Gemini API
+library(pdftools)     # Extracción de texto PDF
+library(sodium)       # Hashing de contraseñas
+library(shinyjs)      # JavaScript desde R
+library(tidyverse)    # Manipulación de datos
+library(lubridate)    # Manejo de fechas
+```
+
+## Colecciones MongoDB — Esquema
+
+| Colección | Campos principales | user_id |
+|----|----|----|
+| `users` | user, password (hash), name, admin | No (global) |
+| `courses` | id, name, short, credits, professor, formula, eval_day, color | Sí |
+| `activities` | act_id, course_id, type, name, code, date, week, weight, done | Sí |
+| `grades` | course_id, code, grade | Sí |
+| `study_notes` | note_id, course_id, text_content, source, created_at | Sí |
+| `schedules` | dia, hora_inicio, hora_fin, curso, codigo, aula | Sí |
+| `syllabi` | course_id, filename, content, uploaded_at | Sí |
+| `exam_checks` | course_id, topic_key, checked | Sí |
+| `pomo_sessions` | course_id, duration_min, completed_at | Sí |
