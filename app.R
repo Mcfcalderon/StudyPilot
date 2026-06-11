@@ -61,7 +61,7 @@ ui <- page_navbar(
 
   # ---- Dashboard ----
   nav_panel(
-    title = "📊 Dashboard",
+    title = "📊 Inicio",
     tags$h5(class = "fw-bold mb-2 mt-2", "📍 Progreso del Ciclo"),
     uiOutput("week_timeline"),
     layout_columns(
@@ -81,7 +81,7 @@ ui <- page_navbar(
 
   # ---- Pomodoro ----
   nav_panel(
-    title = "🍅 Pomodoro",
+    title = "📖 Estudio",
     # Timer + controls in one compact row
     div(class = "text-center py-2",
       div(class = "d-flex justify-content-center align-items-center flex-wrap gap-2 mb-1",
@@ -116,12 +116,10 @@ ui <- page_navbar(
       )
     ),
     tags$h5(class = "fw-bold mb-2 mt-3", "⏳ Evaluaciones Importantes Pendientes"),
-    uiOutput("countdown_cards")
-  ),
-
-  # ---- Modo Examen ----
-  nav_panel(
-    title = "🎯 Modo Examen",
+    uiOutput("countdown_cards"),
+    # Modo Examen integrado
+    tags$hr(),
+    tags$h5(class = "fw-bold mb-2", "🎯 Preparación de Examen"),
     layout_columns(
       col_widths = breakpoints(sm = c(12, 12), lg = c(4, 8)),
       card(
@@ -142,26 +140,13 @@ ui <- page_navbar(
     ),
     tags$h5(class = "fw-bold mb-2 mt-3", "📚 Guía de Estudio"),
     uiOutput("study_guide_content"),
-    tags$div(class = "alert alert-info py-2 small mt-2",
-      "📎 Para subir material y generar resúmenes con IA, usa la pestaña ", tags$b("🤖 IA"), "."
-    )
-  ),
-
-  # ---- IA ----
-  nav_panel(
-    title = "🤖 IA",
-    tags$h4(class = "fw-bold mt-2", "🤖 Asistente de Estudio con IA"),
-    tags$p(class = "text-muted small mb-3", "Sube un archivo y la IA genera resúmenes, conceptos, mapas y preguntas automáticamente."),
-    div(class = "d-flex flex-wrap gap-3 mb-3 justify-content-center",
-      div(class = "text-center", style = "min-width:80px", tags$h4(class = "mb-0", "📝"), tags$small(class = "fw-bold", "Resumen")),
-      div(class = "text-center", style = "min-width:80px", tags$h4(class = "mb-0", "🔑"), tags$small(class = "fw-bold", "Conceptos")),
-      div(class = "text-center", style = "min-width:80px", tags$h4(class = "mb-0", "🗺"), tags$small(class = "fw-bold", "Mapa")),
-      div(class = "text-center", style = "min-width:80px", tags$h4(class = "mb-0", "❓"), tags$small(class = "fw-bold", "Preguntas"))
-    ),
+    # Material IA integrado en Estudio
+    tags$hr(),
+    tags$h5(class = "fw-bold mb-2", "🤖 Material de Estudio con IA"),
+    tags$p(class = "text-muted small", "Sube un archivo y la IA genera resúmenes, conceptos clave, mapas y preguntas."),
     layout_columns(
       col_widths = breakpoints(sm = c(12, 12), lg = c(5, 7)),
       div(
-        tags$b(class = "small", "📎 Subir Material"),
         div(class = "d-flex flex-wrap gap-2 align-items-end mt-1",
           div(style = "min-width:120px", selectInput("ai_upload_course", NULL, choices = setNames(courses$id, courses$short), width = "100%")),
           div(style = "flex:1;min-width:200px", fileInput("ai_study_file", NULL, accept = c(".pdf",".docx",".xlsx",".txt",".csv"), width = "100%"))
@@ -172,22 +157,18 @@ ui <- page_navbar(
           actionButton("ai_gen_questions2", "❓ Preguntas", class = "btn-sm btn-outline-primary")
         )
       ),
-      div(
-        tags$b(class = "small", "📄 Resultado"),
-        uiOutput("ai_result_content"),
-        tags$p(class = "text-muted small mt-1", "Sube un archivo y genera resumen para ver resultados.")
-      )
+      div(uiOutput("ai_result_content"))
     ),
     div(class = "d-flex justify-content-between align-items-center mt-3 mb-1",
-      tags$h5(class = "fw-bold mb-0", "📚 Material Procesado con IA"),
+      tags$h5(class = "fw-bold mb-0", "📚 Material Procesado"),
       actionButton("del_all_notes", "🗑 Borrar todos", class = "btn-sm btn-outline-danger")
     ),
-    uiOutput("ai_processed_notes"),
+    uiOutput("ai_processed_notes")
   ),
 
-  # ---- Examen de Práctica ----
+  # ---- Exámenes (Práctica con IA) ----
   nav_panel(
-    title = "📝 Examen Práctica",
+    title = "📝 Exámenes",
     layout_columns(
       col_widths = breakpoints(sm = c(12, 12), lg = c(3, 9)),
       div(
@@ -225,10 +206,19 @@ ui <- page_navbar(
       actionButton("act_edit", "✏️ Editar", class = "btn-outline-secondary btn-sm"),
       actionButton("act_delete", "🗑 Eliminar", class = "btn-outline-danger btn-sm")
     ),
-    DTOutput("activities_table")
+    DTOutput("activities_table"),
+    # Vista semanal integrada
+    tags$hr(),
+    tags$h5(class = "fw-bold mb-2", "📅 Vista Semanal"),
+    div(class = "d-flex align-items-center gap-3 mb-3",
+      actionButton("week_prev", "◀", class = "btn-sm btn-outline-primary"),
+      uiOutput("week_title"),
+      actionButton("week_next", "▶", class = "btn-sm btn-outline-primary")
+    ),
+    uiOutput("week_view")
   ),
 
-  # ---- Notas ----
+  # ---- Notas + IA ----
   nav_panel(
     title = "🎓 Notas",
     div(class = "text-center py-3 mb-3",
@@ -239,20 +229,9 @@ ui <- page_navbar(
     uiOutput("grades_panels")
   ),
 
-  # ---- Semanal ----
+  # ---- Calendario (Horario) ----
   nav_panel(
-    title = "📅 Semanal",
-    div(class = "d-flex align-items-center gap-3 mb-3",
-      actionButton("week_prev", "◀", class = "btn-sm btn-outline-primary"),
-      uiOutput("week_title"),
-      actionButton("week_next", "▶", class = "btn-sm btn-outline-primary")
-    ),
-    uiOutput("week_view")
-  ),
-
-  # ---- Horario ----
-  nav_panel(
-    title = "🕐 Horario",
+    title = "📅 Calendario",
     # Schedule from PDF with AI
     div(class = "card mb-3",
       div(class = "card-body py-2",
@@ -1232,7 +1211,7 @@ server <- function(input, output, session) {
       select(ID = act_id, Estado, Curso, Actividad = name, Tipo = type, `Peso%` = weight,
              Semana = week, Fecha = date, Días, Prioridad)
 
-    datatable(a, options = list(pageLength = 20, order = list(list(8, 'asc'))),
+    datatable(a, options = list(pageLength = 15, order = list(list(8, 'asc')), dom = 'frtip'),
               rownames = FALSE, selection = "multiple") |>
       formatStyle("Días", color = styleInterval(c(0, 3, 7), c("#dc2626", "#dc2626", "#ca8a04", "#16a34a"))) |>
       formatStyle("Peso%", fontWeight = "bold") |>
