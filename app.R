@@ -206,16 +206,21 @@ ui <- page_navbar(
       actionButton("act_edit", "✏️ Editar", class = "btn-outline-secondary btn-sm"),
       actionButton("act_delete", "🗑 Eliminar", class = "btn-outline-danger btn-sm")
     ),
-    DTOutput("activities_table"),
-    # Vista semanal integrada
-    tags$hr(),
-    tags$h5(class = "fw-bold mb-2", "📅 Vista Semanal"),
-    div(class = "d-flex align-items-center gap-3 mb-3",
-      actionButton("week_prev", "◀", class = "btn-sm btn-outline-primary"),
-      uiOutput("week_title"),
-      actionButton("week_next", "▶", class = "btn-sm btn-outline-primary")
+    div(style = "overflow-x:auto; -webkit-overflow-scrolling:touch;",
+      DTOutput("activities_table")
     ),
-    uiOutput("week_view")
+    # Vista semanal integrada (separada claramente)
+    div(class = "card mt-4",
+      div(class = "card-header py-2 d-flex align-items-center gap-3",
+        tags$b("📅 Vista Semanal"),
+        actionButton("week_prev", "◀", class = "btn-sm btn-outline-primary py-0"),
+        uiOutput("week_title"),
+        actionButton("week_next", "▶", class = "btn-sm btn-outline-primary py-0")
+      ),
+      div(class = "card-body p-2",
+        uiOutput("week_view")
+      )
+    )
   ),
 
   # ---- Notas + IA ----
