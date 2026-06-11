@@ -840,7 +840,8 @@ server <- function(input, output, session) {
       filter(done == 0) |>
       mutate(
         days_left = as.integer(as.Date(date) - Sys.Date()),
-        curso = courses$short[match(course_id, courses$id)],
+        curso = ifelse(course_id == "_personal", "📌 Personal",
+                       ifelse(course_id %in% courses$id, courses$short[match(course_id, courses$id)], course_id)),
         prioridad = priority_class(weight)
       ) |>
       arrange(date) |>
@@ -1222,7 +1223,8 @@ server <- function(input, output, session) {
 
     a <- a |>
       mutate(
-        Curso = courses$short[match(course_id, courses$id)],
+        Curso = ifelse(course_id == "_personal", "📌 Personal",
+                       ifelse(course_id %in% courses$id, courses$short[match(course_id, courses$id)], course_id)),
         Días = as.integer(as.Date(date) - Sys.Date()),
         Estado = ifelse(done == 1, "✅", ifelse(Días < 0, "⚠️", "⬜")),
         Prioridad = priority_class(weight)
@@ -1253,13 +1255,15 @@ server <- function(input, output, session) {
 
   # ---- NUEVA ACTIVIDAD ----
   observeEvent(input$act_new, {
+    course_choices <- c("Personal (sin curso)" = "_personal")
+    if (nrow(courses) > 0) course_choices <- c(course_choices, setNames(courses$id, courses$short))
     showModal(modalDialog(
       title = "Nueva Actividad",
-      selectInput("new_act_course", "Curso:", choices = if (nrow(courses) > 0) setNames(courses$id, courses$short) else c()),
-      textInput("new_act_name", "Nombre:", placeholder = "Ej: Trabajo Final"),
-      selectInput("new_act_type", "Tipo:", choices = c("ec", "examen", "proyecto", "quiz")),
-      numericInput("new_act_weight", "Peso (%):", value = 10, min = 0, max = 100),
-      dateInput("new_act_date", "Fecha:", value = Sys.Date() + 7),
+      textInput("new_act_name", "Nombre:", placeholder = "Ej: Entregar informe, Estudiar para parcial, Ir al gym..."),
+      selectInput("new_act_course", "Curso (opcional):", choices = course_choices),
+      selectInput("new_act_type", "Tipo:", choices = c("tarea" = "tarea", "ec", "examen", "proyecto", "quiz", "personal" = "personal")),
+      numericInput("new_act_weight", "Peso (%):", value = 0, min = 0, max = 100),
+      dateInput("new_act_date", "Fecha límite:", value = Sys.Date() + 7),
       textInput("new_act_notes", "Notas:", placeholder = "Opcional"),
       footer = tagList(
         modalButton("Cancelar"),
@@ -1273,7 +1277,8 @@ server <- function(input, output, session) {
     if (is.null(input$new_act_name) || nchar(input$new_act_name) == 0) {
       showNotification("Escribe un nombre para la actividad", type = "warning"); return()
     }
-    mg_activity_add(uid(), input$new_act_course, input$new_act_type,
+    act_course <- if (input$new_act_course == "_personal") "_personal" else input$new_act_course
+    mg_activity_add(uid(), act_course, input$new_act_type,
       input$new_act_name, as.character(input$new_act_date),
       input$new_act_weight, input$new_act_notes)
     rv$refresh <- rv$refresh + 1
