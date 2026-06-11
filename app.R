@@ -66,12 +66,12 @@ ui <- page_navbar(
     uiOutput("week_timeline"),
     layout_columns(
       col_widths = breakpoints(sm = c(6, 6, 6, 6, 6, 6), md = c(4, 4, 4, 4, 4, 4), lg = c(2, 2, 2, 2, 2, 2)),
-      value_box("✅ Progreso", textOutput("stat_pct"), theme = "success"),
-      value_box("⏳ Pendientes", textOutput("stat_pending"), theme = "primary"),
-      value_box("⚠️ Atrasadas", textOutput("stat_overdue"), theme = "danger"),
-      value_box("⭐ Alta Prior.", textOutput("stat_high"), theme = "warning"),
-      value_box("📅 Semanas", textOutput("stat_weeks"), theme = "info"),
-      value_box("🎓 Promedio", textOutput("stat_avg"), theme = "secondary")
+      value_box("✅ Progreso", textOutput("stat_pct"), theme = value_box_theme(bg = "#059669", fg = "#fff")),
+      value_box("⏳ Pendientes", textOutput("stat_pending"), theme = value_box_theme(bg = "#2563eb", fg = "#fff")),
+      value_box("⚠️ Atrasadas", textOutput("stat_overdue"), theme = value_box_theme(bg = "#dc2626", fg = "#fff")),
+      value_box("⭐ Alta Prior.", textOutput("stat_high"), theme = value_box_theme(bg = "#d97706", fg = "#fff")),
+      value_box("📅 Semanas", textOutput("stat_weeks"), theme = value_box_theme(bg = "#0891b2", fg = "#fff")),
+      value_box("🎓 Promedio", textOutput("stat_avg"), theme = value_box_theme(bg = "#6366f1", fg = "#fff"))
     ),
     tags$h5(class = "fw-bold mb-2 mt-3", "📋 Próximas Actividades"),
     div(style = "overflow-x:auto; -webkit-overflow-scrolling:touch;",
@@ -345,10 +345,13 @@ ui <- page_navbar(
   ),
   # Floating chat widget
   nav_item(
-    tags$div(id = "chat-float-btn", class = "chat-float-btn", onclick = "toggleChat()",
+    tags$div(id = "chat-float-btn", class = "chat-float-btn",
+      style = "position:fixed !important;bottom:24px !important;right:24px !important;top:auto !important;z-index:99999 !important;",
+      onclick = "toggleChat()",
       "💬"
     ),
-    tags$div(id = "chat-float-panel", class = "chat-float-panel", style = "display:none",
+    tags$div(id = "chat-float-panel", class = "chat-float-panel",
+      style = "display:none;position:fixed !important;bottom:90px !important;right:24px !important;top:auto !important;z-index:99999 !important;",
       tags$div(class = "chat-float-header",
         tags$span(class = "fw-bold", "💬 Asistente IA"),
         tags$span(class = "chat-float-close", onclick = "toggleChat()", "✕")
@@ -1527,6 +1530,13 @@ server <- function(input, output, session) {
   output$visual_calendar <- renderUI({
     rv$refresh
     gcal_events <- rv_gcal$events
+    # If no events, show placeholder instead of empty calendar grid
+    if (is.null(gcal_events) || nrow(gcal_events) == 0) {
+      return(tags$div(class = "text-center text-muted py-4",
+        tags$p("📅 No hay eventos en el calendario."),
+        tags$p(class = "small", "Sincroniza con Google Calendar o sube tu horario con IA arriba.")
+      ))
+    }
     cw <- rv$cal_week
     week_start <- SEMESTER_START + (cw - 1) * 7
     today <- Sys.Date()
