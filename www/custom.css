@@ -455,3 +455,13 @@ table.table-bordered th { background: linear-gradient(135deg, #2563eb, #1d4ed8) 
 .ai-formatted p { margin-bottom: 8px; }
 .mermaid { background: #f8fafc; border-radius: 12px; padding: 16px; margin: 12px 0; border: 1px solid #e2e8f0; text-align: center; }
 .mermaid svg { max-width: 100%; }
+
+/* ---- Mobile responsive tables ---- */
+@media (max-width: 768px) {
+  .dataTables_wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .dataTables_wrapper table { min-width: 600px; }
+  .card-body { padding: 0.75rem !important; }
+  .value-box { min-height: 80px !important; }
+  .value-box .value-box-value { font-size: 1.5rem !important; }
+  .nav-link { font-size: 0.75rem !important; padding: 0.3rem 0.5rem !important; }
+}

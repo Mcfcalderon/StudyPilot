@@ -74,7 +74,9 @@ ui <- page_navbar(
       value_box("🎓 Promedio", textOutput("stat_avg"), theme = "secondary")
     ),
     tags$h5(class = "fw-bold mb-2 mt-3", "📋 Próximas Actividades"),
-    DTOutput("upcoming_table")
+    div(style = "overflow-x:auto; -webkit-overflow-scrolling:touch;",
+      DTOutput("upcoming_table")
+    )
   ),
 
   # ---- Pomodoro ----
@@ -217,8 +219,9 @@ ui <- page_navbar(
       selectInput("act_filter_status", "Estado:", choices = c("Pendientes" = "pending", "Todas" = "all", "Completadas" = "done")),
       selectInput("act_filter_pri", "Prioridad:", choices = c("Todas" = "all", "🔴 Alta ≥20%" = "high", "🟡 Media" = "medium", "🟢 Baja" = "low"))
     ),
-    div(class = "d-flex gap-2 mb-3",
+    div(class = "d-flex flex-wrap gap-2 mb-3",
       actionButton("act_new", "+ Nueva Actividad", class = "btn-primary"),
+      actionButton("act_mark_done", "✅ Marcar hechas", class = "btn-outline-success btn-sm"),
       actionButton("act_edit", "✏️ Editar", class = "btn-outline-secondary btn-sm"),
       actionButton("act_delete", "🗑 Eliminar", class = "btn-outline-danger btn-sm")
     ),
@@ -1215,52 +1218,87 @@ server <- function(input, output, session) {
              Semana = week, Fecha = date, Días, Prioridad)
 
     datatable(a, options = list(pageLength = 20, order = list(list(8, 'asc'))),
-              rownames = FALSE, selection = "single") |>
+              rownames = FALSE, selection = "multiple") |>
       formatStyle("Días", color = styleInterval(c(0, 3, 7), c("#dc2626", "#dc2626", "#ca8a04", "#16a34a"))) |>
       formatStyle("Peso%", fontWeight = "bold") |>
       formatStyle("Prioridad",
         backgroundColor = styleEqual(c("high", "medium", "low"), c("#fef2f2", "#fffbeb", "#f0fdf4")))
   })
 
-  # Toggle activity done
-  observeEvent(input$activities_table_rows_selected, {
-    sel <- input$activities_table_rows_selected
-    if (length(sel) == 0) return()
+  # Helper: get filtered activities (same filters as table)
+  filtered_acts <- function() {
     a <- acts()
-    # Apply same filters to find actual row
-    af <- a
-    if (input$act_filter_course != "all") af <- af |> filter(course_id == input$act_filter_course)
-    if (input$act_filter_type != "all") af <- af |> filter(type == input$act_filter_type)
-    if (input$act_filter_status == "pending") af <- af |> filter(done == 0)
-    if (input$act_filter_status == "done") af <- af |> filter(done == 1)
-    if (input$act_filter_pri == "high") af <- af |> filter(weight >= 20)
-    if (input$act_filter_pri == "medium") af <- af |> filter(weight >= 10, weight < 20)
-    if (input$act_filter_pri == "low") af <- af |> filter(weight < 10)
-    af <- af |> arrange(date)
+    if (input$act_filter_course != "all") a <- a[a$course_id == input$act_filter_course, ]
+    if (input$act_filter_type != "all") a <- a[a$type == input$act_filter_type, ]
+    if (input$act_filter_status == "pending") a <- a[a$done == 0, ]
+    if (input$act_filter_status == "done") a <- a[a$done == 1, ]
+    if (input$act_filter_pri == "high") a <- a[a$weight >= 20, ]
+    if (input$act_filter_pri == "medium") a <- a[a$weight >= 10 & a$weight < 20, ]
+    if (input$act_filter_pri == "low") a <- a[a$weight < 10, ]
+    a[order(a$date), ]
+  }
 
-    if (sel <= nrow(af)) {
-      row <- af[sel, ]
-      new_done <- 1L - row$done
-      aid <- if ("act_id" %in% names(row)) row$act_id else row$id
-      mg_activity_toggle(uid(), aid, new_done)
-      status_msg <- if (new_done == 1) paste0("✅ ", row$name, " marcada como completada")
-                    else paste0("⬜ ", row$name, " marcada como pendiente")
-      showNotification(status_msg, type = if (new_done == 1) "message" else "warning", duration = 3)
-      rv$refresh <- rv$refresh + 1
-    }
+  # ---- NUEVA ACTIVIDAD ----
+  observeEvent(input$act_new, {
+    showModal(modalDialog(
+      title = "Nueva Actividad",
+      selectInput("new_act_course", "Curso:", choices = if (nrow(courses) > 0) setNames(courses$id, courses$short) else c()),
+      textInput("new_act_name", "Nombre:", placeholder = "Ej: Trabajo Final"),
+      selectInput("new_act_type", "Tipo:", choices = c("ec", "examen", "proyecto", "quiz")),
+      numericInput("new_act_weight", "Peso (%):", value = 10, min = 0, max = 100),
+      dateInput("new_act_date", "Fecha:", value = Sys.Date() + 7),
+      textInput("new_act_notes", "Notas:", placeholder = "Opcional"),
+      footer = tagList(
+        modalButton("Cancelar"),
+        actionButton("new_act_save", "✅ Crear", class = "btn-primary")
+      ),
+      easyClose = TRUE
+    ))
   })
 
-  # Edit activity
+  observeEvent(input$new_act_save, {
+    if (is.null(input$new_act_name) || nchar(input$new_act_name) == 0) {
+      showNotification("Escribe un nombre para la actividad", type = "warning"); return()
+    }
+    mg_activity_add(uid(), input$new_act_course, input$new_act_type,
+      input$new_act_name, as.character(input$new_act_date),
+      input$new_act_weight, input$new_act_notes)
+    rv$refresh <- rv$refresh + 1
+    removeModal()
+    showNotification(paste0("✅ Actividad '", input$new_act_name, "' creada"), type = "message")
+  })
+
+  # ---- MARCAR HECHAS (múltiple) ----
+  observeEvent(input$act_mark_done, {
+    sel <- input$activities_table_rows_selected
+    if (length(sel) == 0) { showNotification("Selecciona actividades primero", type = "warning"); return() }
+    af <- filtered_acts()
+    count <- 0
+    for (s in sel) {
+      if (s <= nrow(af)) {
+        row <- af[s, ]
+        aid <- if ("act_id" %in% names(row)) row$act_id else s
+        new_done <- 1L - row$done
+        mg_activity_toggle(uid(), aid, new_done)
+        count <- count + 1
+      }
+    }
+    rv$refresh <- rv$refresh + 1
+    showNotification(paste0("✅ ", count, " actividad(es) actualizada(s)"), type = "message", duration = 3)
+  })
+
+  # ---- EDITAR ACTIVIDAD ----
   observeEvent(input$act_edit, {
     sel <- input$activities_table_rows_selected
     if (length(sel) == 0) { showNotification("Selecciona una actividad primero", type = "warning"); return() }
-    a <- acts()
-    af <- a |> arrange(date)
-    if (sel > nrow(af)) return()
-    row <- af[sel, ]
+    if (length(sel) > 1) { showNotification("Selecciona solo una actividad para editar", type = "warning"); return() }
+    af <- filtered_acts()
+    if (sel[1] > nrow(af)) return()
+    row <- af[sel[1], ]
     showModal(modalDialog(
       title = paste0("Editar: ", row$name),
       textInput("edit_act_name", "Nombre:", value = row$name),
+      selectInput("edit_act_type", "Tipo:", choices = c("ec", "examen", "proyecto", "quiz"), selected = row$type),
       numericInput("edit_act_weight", "Peso (%):", value = row$weight, min = 0, max = 100),
       dateInput("edit_act_date", "Fecha:", value = as.Date(row$date)),
       footer = tagList(
@@ -1280,31 +1318,34 @@ server <- function(input, output, session) {
     showNotification("✅ Actividad actualizada", type = "message")
   })
 
-  # Delete activity
+  # ---- ELIMINAR ACTIVIDADES (múltiple) ----
   observeEvent(input$act_delete, {
     sel <- input$activities_table_rows_selected
-    if (length(sel) == 0) { showNotification("Selecciona una actividad primero", type = "warning"); return() }
-    a <- acts()
-    af <- a |> arrange(date)
-    if (sel > nrow(af)) return()
-    row <- af[sel, ]
+    if (length(sel) == 0) { showNotification("Selecciona actividades primero", type = "warning"); return() }
+    af <- filtered_acts()
+    names_list <- sapply(sel, function(s) if (s <= nrow(af)) af$name[s] else "")
+    names_list <- names_list[nchar(names_list) > 0]
     showModal(modalDialog(
-      title = "Confirmar eliminación",
-      tags$p(paste0("¿Eliminar '", row$name, "' (", row$weight, "%) de ", row$course_id, "?")),
+      title = paste0("Eliminar ", length(names_list), " actividad(es)"),
+      tags$ul(lapply(names_list, function(n) tags$li(n))),
+      tags$p(class = "text-danger", "Esta acción no se puede deshacer."),
       footer = tagList(
         modalButton("Cancelar"),
         actionButton("delete_act_confirm", "🗑 Eliminar", class = "btn-danger")
       ),
       easyClose = TRUE
     ))
-    rv$deleting_act_id <- row$act_id
+    rv$deleting_act_ids <- sapply(sel, function(s) if (s <= nrow(af)) af$act_id[s] else NA)
+    rv$deleting_act_ids <- rv$deleting_act_ids[!is.na(rv$deleting_act_ids)]
   })
 
   observeEvent(input$delete_act_confirm, {
-    mg_activity_delete(uid(), rv$deleting_act_id)
+    for (aid in rv$deleting_act_ids) {
+      mg_activity_delete(uid(), aid)
+    }
     rv$refresh <- rv$refresh + 1
     removeModal()
-    showNotification("🗑 Actividad eliminada", type = "warning")
+    showNotification(paste0("🗑 ", length(rv$deleting_act_ids), " actividad(es) eliminada(s)"), type = "warning")
   })
 
   # ---- GRADES ----
