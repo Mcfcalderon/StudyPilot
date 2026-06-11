@@ -51,7 +51,7 @@ ui <- page_navbar(
     "nav-link-font-weight" = "500"
   ),
   header = tags$head(
-    tags$link(rel = "stylesheet", href = "custom.css"),
+    tags$link(rel = "stylesheet", href = paste0("custom.css?v=", format(Sys.time(), "%Y%m%d%H%M"))),
     tags$script(src = "pomodoro.js"),
     tags$script(src = "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"),
     tags$script(HTML("mermaid.initialize({startOnLoad:false, theme:'default', securityLevel:'loose'});")),
@@ -1041,7 +1041,7 @@ server <- function(input, output, session) {
       topics <- course_topics[[ex$course_id]]
       if (is.null(topics)) return(tags$p(class = "text-muted", "No hay guías de estudio para este curso aún."))
       return(tagList(
-        tags$div(class = "alert alert-info py-2 small", "Guías detalladas disponibles para Ética. Para otros cursos se muestran los temas del sílabo."),
+        tags$div(class = "alert alert-info py-2 small", "📚 Temas extraídos del sílabo. Usa el material IA de abajo para generar resúmenes y guías detalladas."),
         tags$ol(class = "small", lapply(topics, function(t) tags$li(t)))
       ))
     }
