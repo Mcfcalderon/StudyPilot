@@ -401,7 +401,20 @@ ui <- fluidPage(
     tags$meta(name = "apple-mobile-web-app-status-bar-style", content = "black-translucent"),
     tags$meta(name = "apple-mobile-web-app-title", content = "StudyPilot"),
     tags$link(rel = "apple-touch-icon", href = "icon-512.svg"),
-    tags$link(rel = "icon", type = "image/svg+xml", href = "icon-512.svg")
+    tags$link(rel = "icon", type = "image/svg+xml", href = "icon-512.svg"),
+    # Keepalive heartbeat + auto-reconnect (all devices)
+    tags$script(HTML("
+      // Ping every 50 seconds to prevent idle timeout
+      setInterval(function() {
+        if (window.Shiny && Shiny.shinyapp && Shiny.shinyapp.$socket) {
+          Shiny.setInputValue('keepalive', Date.now());
+        }
+      }, 50000);
+      // Auto-reload on disconnect (instead of showing gray screen)
+      $(document).on('shiny:disconnected', function() {
+        setTimeout(function() { location.reload(); }, 3000);
+      });
+    "))
   ),
   tags$head(
     tags$link(rel = "stylesheet", href = "https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"),
