@@ -31,24 +31,29 @@ rotate_key <- function() {
   new_idx
 }
 
-# Smart AI call with automatic key rotation on 429
+# Smart AI call with automatic key rotation on 429/503
 ai_call <- function(prompt) {
+  last_error <- "Error desconocido"
   for (attempt in seq_along(.gemini_keys)) {
     result <- tryCatch({
       chat <- get_gemini()
       response <- chat$chat(prompt)
       return(response)
     }, error = function(e) {
-      if (grepl("429", e$message)) {
-        message("[StudyPilot] Key #", get0(".gemini_key_idx", envir = globalenv()), " rate limited, rotating...")
+      if (grepl("429|503|502|rate", e$message, ignore.case = TRUE)) {
+        message("[StudyPilot] Key #", get0(".gemini_key_idx", envir = globalenv()), " error: ", substr(e$message, 1, 60), " - rotating...")
         rotate_key()
+        Sys.sleep(2)
         return(NULL)
       }
-      stop(e$message)
+      last_error <<- e$message
+      message("[StudyPilot] AI non-retryable error: ", e$message)
+      rotate_key()
+      return(NULL)
     })
     if (!is.null(result)) return(result)
   }
-  stop("Todas las API keys est\u00e1n con rate limit. Espera 1-2 minutos e intenta de nuevo.")
+  stop(paste0("Error de IA tras ", length(.gemini_keys), " intentos: ", last_error))
 }
 
 # ============ GENERATE STUDY SUMMARY FROM TEXT ============

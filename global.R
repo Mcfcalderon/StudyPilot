@@ -135,3 +135,74 @@ priority_class <- function(w) {
 days_until <- function(date_str) {
   as.integer(as.Date(date_str) - Sys.Date())
 }
+
+# ============ SMART SCHEDULER: PRIORITY ALGORITHM ============
+# Calcula la prioridad de estudio para cada evaluación pendiente
+# Retorna data.frame ordenado por prioridad descendente
+calcular_prioridades_estudio <- function(df_cursos, df_actividades, df_grades = NULL) {
+  if (nrow(df_actividades) == 0) return(data.frame())
+
+  # Solo actividades pendientes y futuras (o muy recientes)
+  today <- Sys.Date()
+  pending <- df_actividades[df_actividades$done == 0 & as.Date(df_actividades$date) >= today - 3, ]
+  if (nrow(pending) == 0) return(data.frame())
+
+  max_credits <- max(df_cursos$credits, na.rm = TRUE)
+  if (max_credits == 0) max_credits <- 1
+
+  result <- do.call(rbind, lapply(seq_len(nrow(pending)), function(i) {
+    act <- pending[i, ]
+    cid <- act$course_id
+
+    # Factor 1: Créditos normalizados (0-1)
+    credits <- 0
+    if (cid %in% df_cursos$id) credits <- df_cursos$credits[df_cursos$id == cid]
+    f_credits <- credits / max_credits
+
+    # Factor 2: Déficit de nota (0-1) — más bajo el promedio, más urgente
+    f_deficit <- 0.5  # default si no hay notas
+    if (!is.null(df_grades) && nrow(df_grades) > 0) {
+      course_grades <- df_grades[df_grades$course_id == cid, ]
+      if (nrow(course_grades) > 0) {
+        avg <- mean(course_grades$grade, na.rm = TRUE)
+        f_deficit <- (20 - avg) / 20  # 0 = promedio perfecto, 1 = nota 0
+      }
+    }
+
+    # Factor 3: Peso de la evaluación (0-1)
+    f_weight <- min(act$weight / 100, 1)
+
+    # Factor 4: Urgencia temporal (0-1) — menos días = más urgente
+    days_left <- max(as.integer(as.Date(act$date) - today), 1)
+    f_urgency <- 1 / (1 + days_left / 7)  # Decay suave: 1 día=0.88, 7 días=0.5, 14 días=0.33
+
+    # Score ponderado final
+    priority_score <- f_credits * 0.20 + f_deficit * 0.25 + f_weight * 0.25 + f_urgency * 0.30
+
+    # Temas vinculados
+    temas <- if ("temas_vinculados" %in% names(act) && !is.null(act$temas_vinculados[[1]])) {
+      paste(act$temas_vinculados[[1]], collapse = " | ")
+    } else ""
+
+    data.frame(
+      course_id = cid,
+      course_name = if (cid %in% df_cursos$id) df_cursos$short[df_cursos$id == cid] else cid,
+      activity = act$name,
+      act_id = act$act_id,
+      type = act$type,
+      weight = act$weight,
+      date = act$date,
+      days_left = days_left,
+      credits = credits,
+      f_credits = round(f_credits, 3),
+      f_deficit = round(f_deficit, 3),
+      f_weight = round(f_weight, 3),
+      f_urgency = round(f_urgency, 3),
+      priority_score = round(priority_score, 3),
+      temas = temas,
+      stringsAsFactors = FALSE
+    )
+  }))
+
+  result[order(-result$priority_score), ]
+}

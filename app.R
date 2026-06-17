@@ -64,14 +64,19 @@ ui <- page_navbar(
     title = "📊 Inicio",
     tags$h5(class = "fw-bold mb-2 mt-2", "📍 Progreso del Ciclo"),
     uiOutput("week_timeline"),
-    layout_columns(
-      col_widths = breakpoints(sm = c(6, 6, 6, 6, 6, 6), md = c(4, 4, 4, 4, 4, 4), lg = c(2, 2, 2, 2, 2, 2)),
-      value_box("✅ Progreso", textOutput("stat_pct"), theme = value_box_theme(bg = "#059669", fg = "#fff")),
-      value_box("⏳ Pendientes", textOutput("stat_pending"), theme = value_box_theme(bg = "#2563eb", fg = "#fff")),
-      value_box("⚠️ Atrasadas", textOutput("stat_overdue"), theme = value_box_theme(bg = "#dc2626", fg = "#fff")),
-      value_box("⭐ Alta Prior.", textOutput("stat_high"), theme = value_box_theme(bg = "#d97706", fg = "#fff")),
-      value_box("📅 Semanas", textOutput("stat_weeks"), theme = value_box_theme(bg = "#0891b2", fg = "#fff")),
-      value_box("🎓 Promedio", textOutput("stat_avg"), theme = value_box_theme(bg = "#6366f1", fg = "#fff"))
+    div(class = "d-flex flex-wrap gap-3 mb-3", style = "justify-content:center;",
+      tags$div(class = "kpi-card", style = "background:linear-gradient(135deg,#059669,#10b981);",
+        tags$div(class = "kpi-label", "✅ Progreso"), tags$div(class = "kpi-value", textOutput("stat_pct", inline = TRUE))),
+      tags$div(class = "kpi-card", style = "background:linear-gradient(135deg,#2563eb,#3b82f6);",
+        tags$div(class = "kpi-label", "⏳ Pendientes"), tags$div(class = "kpi-value", textOutput("stat_pending", inline = TRUE))),
+      tags$div(class = "kpi-card", style = "background:linear-gradient(135deg,#dc2626,#ef4444);",
+        tags$div(class = "kpi-label", "⚠️ Atrasadas"), tags$div(class = "kpi-value", textOutput("stat_overdue", inline = TRUE))),
+      tags$div(class = "kpi-card", style = "background:linear-gradient(135deg,#d97706,#f59e0b);",
+        tags$div(class = "kpi-label", "⭐ Alta Prior."), tags$div(class = "kpi-value", textOutput("stat_high", inline = TRUE))),
+      tags$div(class = "kpi-card", style = "background:linear-gradient(135deg,#0891b2,#06b6d4);",
+        tags$div(class = "kpi-label", "📅 Semanas"), tags$div(class = "kpi-value", textOutput("stat_weeks", inline = TRUE))),
+      tags$div(class = "kpi-card", style = "background:linear-gradient(135deg,#6366f1,#8b5cf6);",
+        tags$div(class = "kpi-label", "🎓 Promedio"), tags$div(class = "kpi-value", textOutput("stat_avg", inline = TRUE)))
     ),
     tags$h5(class = "fw-bold mb-2 mt-3", "📋 Próximas Actividades"),
     div(style = "overflow-x:auto; -webkit-overflow-scrolling:touch;",
@@ -343,28 +348,30 @@ ui <- page_navbar(
       "Cerrar sesión"
     ), style = "color:white;opacity:0.9;font-size:0.85rem;text-decoration:none;cursor:pointer;")
   ),
-  # Floating chat widget
-  nav_item(
-    tags$div(id = "chat-float-btn", class = "chat-float-btn",
-      style = "position:fixed !important;bottom:24px !important;right:24px !important;top:auto !important;z-index:99999 !important;",
+  # Floating chat as absolute div (outside navbar)
+  tags$div(
+    tags$div(id = "chat-float-btn",
+      style = "position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff;font-size:1.5rem;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:99999;box-shadow:0 6px 25px rgba(37,99,235,0.4);",
       onclick = "toggleChat()",
       "💬"
     ),
-    tags$div(id = "chat-float-panel", class = "chat-float-panel",
-      style = "display:none;position:fixed !important;bottom:90px !important;right:24px !important;top:auto !important;z-index:99999 !important;",
-      tags$div(class = "chat-float-header",
+    tags$div(id = "chat-float-panel",
+      style = "display:none;position:fixed;bottom:90px;right:24px;width:370px;max-height:500px;background:rgba(255,255,255,0.97);border-radius:20px;box-shadow:0 16px 60px rgba(0,0,0,0.15);z-index:99999;flex-direction:column;border:1px solid #e2e8f0;",
+      tags$div(style = "display:flex;justify-content:space-between;align-items:center;padding:14px 18px;background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff;border-radius:20px 20px 0 0;",
         tags$span(class = "fw-bold", "💬 Asistente IA"),
-        tags$span(class = "chat-float-close", onclick = "toggleChat()", "✕")
+        tags$span(style = "cursor:pointer;font-size:1.2rem;", onclick = "toggleChat()", "✕")
       ),
-      uiOutput("chat_display"),
-      tags$div(class = "chat-float-input",
+      tags$div(style = "max-height:320px;overflow-y:auto;padding:12px 14px;font-size:0.85rem;word-wrap:break-word;",
+        uiOutput("chat_display")
+      ),
+      tags$div(style = "padding:10px 14px;border-top:1px solid #f1f5f9;",
         tags$div(class = "d-flex gap-1",
           tags$div(style = "flex:1", textInput("chat_input", NULL, placeholder = "Pregunta algo...", width = "100%")),
           actionButton("chat_send", "📤", class = "btn-sm btn-primary")
         )
       )
     ),
-    tags$script(HTML("function toggleChat(){var p=document.getElementById('chat-float-panel');p.style.display=p.style.display==='none'?'flex':'none';}"))
+    tags$script(HTML("function toggleChat(){var p=document.getElementById('chat-float-panel');if(p.style.display==='none'||p.style.display===''){p.style.display='flex';}else{p.style.display='none';}}"))
   ),
   nav_item(
     tags$span(class = "navbar-text text-white",
@@ -1251,6 +1258,7 @@ server <- function(input, output, session) {
       selectInput("new_act_type", "Tipo:", choices = c("tarea" = "tarea", "ec", "examen", "proyecto", "quiz", "personal" = "personal")),
       numericInput("new_act_weight", "Peso (%):", value = 0, min = 0, max = 100),
       dateInput("new_act_date", "Fecha límite:", value = Sys.Date() + 7),
+      uiOutput("new_act_topics_ui"),
       textInput("new_act_notes", "Notas:", placeholder = "Opcional"),
       footer = tagList(
         modalButton("Cancelar"),
@@ -1260,14 +1268,27 @@ server <- function(input, output, session) {
     ))
   })
 
+  # Dynamic topics selector for new activity (changes with course)
+  output$new_act_topics_ui <- renderUI({
+    cid <- input$new_act_course
+    if (is.null(cid) || cid == "_personal") return(NULL)
+    ct <- get0("course_topics", envir = globalenv())
+    topics <- if (!is.null(ct) && cid %in% names(ct)) ct[[cid]] else character(0)
+    if (length(topics) == 0) return(NULL)
+    selectizeInput("new_act_topics", "📚 Temas vinculados:",
+      choices = topics, selected = NULL, multiple = TRUE,
+      options = list(placeholder = "Selecciona temas (opcional)..."))
+  })
+
   observeEvent(input$new_act_save, {
     if (is.null(input$new_act_name) || nchar(input$new_act_name) == 0) {
       showNotification("Escribe un nombre para la actividad", type = "warning"); return()
     }
     act_course <- if (input$new_act_course == "_personal") "_personal" else input$new_act_course
+    temas_new <- input$new_act_topics  # NULL if not rendered or nothing selected
     mg_activity_add(uid(), act_course, input$new_act_type,
       input$new_act_name, as.character(input$new_act_date),
-      input$new_act_weight, input$new_act_notes)
+      input$new_act_weight, input$new_act_notes, temas = temas_new)
     rv$refresh <- rv$refresh + 1
     removeModal()
     showNotification(paste0("✅ Actividad '", input$new_act_name, "' creada"), type = "message")
@@ -1300,12 +1321,26 @@ server <- function(input, output, session) {
     af <- filtered_acts()
     if (sel[1] > nrow(af)) return()
     row <- af[sel[1], ]
+    # Get available topics for this course
+    cid_edit <- row$course_id
+    ct <- get0("course_topics", envir = globalenv())
+    available_topics <- if (!is.null(ct) && cid_edit %in% names(ct)) ct[[cid_edit]] else character(0)
+    # Get currently linked topics
+    current_topics <- tryCatch(mg_activity_get_topics(uid(), row$act_id), error = function(e) character(0))
+
     showModal(modalDialog(
       title = paste0("Editar: ", row$name),
       textInput("edit_act_name", "Nombre:", value = row$name),
-      selectInput("edit_act_type", "Tipo:", choices = c("ec", "examen", "proyecto", "quiz"), selected = row$type),
+      selectInput("edit_act_type", "Tipo:",
+        choices = c("ec", "examen", "proyecto", "quiz", "tarea", "personal"), selected = row$type),
       numericInput("edit_act_weight", "Peso (%):", value = row$weight, min = 0, max = 100),
       dateInput("edit_act_date", "Fecha:", value = as.Date(row$date)),
+      if (length(available_topics) > 0)
+        selectizeInput("edit_act_topics", "📚 Temas vinculados:",
+          choices = available_topics, selected = current_topics,
+          multiple = TRUE, options = list(placeholder = "Selecciona temas que entran en esta evaluación..."))
+      else
+        tags$p(class = "text-muted small", "Sin temas disponibles. Sube el sílabo del curso para vincular temas."),
       footer = tagList(
         modalButton("Cancelar"),
         actionButton("edit_act_save", "💾 Guardar", class = "btn-primary")
@@ -1317,10 +1352,13 @@ server <- function(input, output, session) {
 
   observeEvent(input$edit_act_save, {
     aid <- rv$editing_act_id
-    mg_activity_update(uid(), aid, input$edit_act_name, input$edit_act_weight, as.character(input$edit_act_date))
+    temas_sel <- input$edit_act_topics  # NULL if no selectize rendered
+    mg_activity_update(uid(), aid, input$edit_act_name, input$edit_act_weight,
+      as.character(input$edit_act_date), type = input$edit_act_type, temas = temas_sel)
     rv$refresh <- rv$refresh + 1
     removeModal()
-    showNotification("✅ Actividad actualizada", type = "message")
+    n_temas <- if (!is.null(temas_sel)) length(temas_sel) else 0
+    showNotification(paste0("✅ Actividad actualizada", if (n_temas > 0) paste0(" (", n_temas, " temas vinculados)") else ""), type = "message")
   })
 
   # ---- ELIMINAR ACTIVIDADES (múltiple) ----
@@ -1523,8 +1561,8 @@ server <- function(input, output, session) {
 
   # ---- SCHEDULE ----
   # Visual Calendar with multi-hour event blocks
-  HOUR_H <- 40  # pixels per hour (compact)
-  CAL_FIRST_HOUR <- 0
+  HOUR_H <- 50  # pixels per hour
+  CAL_FIRST_HOUR <- 7
   CAL_LAST_HOUR <- 23
 
   output$visual_calendar <- renderUI({

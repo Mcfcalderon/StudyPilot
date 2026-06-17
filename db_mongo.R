@@ -91,17 +91,19 @@ mg_activity_toggle <- function(uid, act_id, new_done) {
   a# connection reused
 }
 
-mg_activity_add <- function(uid, cid, type, name, date, weight, notes) {
+mg_activity_add <- function(uid, cid, type, name, date, weight, notes, temas = NULL) {
   a <- mongo_col("activities")
   if (is.null(a)) return(invisible(NULL))
   max_id <- 0
   existing <- a$find(query = uf(uid), fields = '{"act_id":1}', sort = '{"act_id":-1}', limit = 1)
   if (nrow(existing) > 0) max_id <- existing$act_id[1]
-  a$insert(data.frame(
-    user_id = uid, act_id = max_id + 1, course_id = cid, type = type, name = name,
+  doc <- list(
+    user_id = uid, act_id = max_id + 1L, course_id = cid, type = type, name = name,
     code = "", date = date, week = 0L, weight = weight,
     done = 0L, done_date = NA_character_, notes = notes
-  ))
+  )
+  if (!is.null(temas) && length(temas) > 0) doc$temas_vinculados <- temas
+  a$insert(jsonlite::toJSON(doc, auto_unbox = TRUE))
   a# connection reused
 }
 
@@ -262,13 +264,30 @@ mg_pomo_add <- function(uid, cid, duration) {
 }
 
 # ============ UPDATE ACTIVITY ============
-mg_activity_update <- function(uid, act_id, name, weight, date) {
+mg_activity_update <- function(uid, act_id, name, weight, date, type = NULL, temas = NULL) {
   a <- mongo_col("activities")
   if (is.null(a)) return(invisible(NULL))
+  set_fields <- paste0('"name":"', name, '","weight":', weight, ',"date":"', date, '"')
+  if (!is.null(type) && nchar(type) > 0) set_fields <- paste0(set_fields, ',"type":"', type, '"')
+  if (!is.null(temas)) {
+    temas_json <- jsonlite::toJSON(temas, auto_unbox = FALSE)
+    set_fields <- paste0(set_fields, ',"temas_vinculados":', temas_json)
+  }
   a$update(
     uf(uid, paste0('"act_id":', act_id)),
-    paste0('{"$set":{"name":"', name, '","weight":', weight, ',"date":"', date, '"}}')
+    paste0('{"$set":{', set_fields, '}}')
   )
+}
+
+mg_activity_get_topics <- function(uid, act_id) {
+  a <- mongo_col("activities")
+  if (is.null(a)) return(character(0))
+  result <- a$find(uf(uid, paste0('"act_id":', act_id)), fields = '{"temas_vinculados":1}')
+  if (nrow(result) > 0 && "temas_vinculados" %in% names(result)) {
+    tv <- result$temas_vinculados[[1]]
+    if (!is.null(tv) && length(tv) > 0) return(as.character(tv))
+  }
+  character(0)
 }
 
 mg_activity_delete <- function(uid, act_id) {
