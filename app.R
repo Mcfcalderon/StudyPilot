@@ -1618,11 +1618,26 @@ server <- function(input, output, session) {
   output$visual_calendar <- renderUI({
     rv$refresh
     gcal_events <- rv_gcal$events
-    # If no events, show placeholder instead of empty calendar grid
+    ai_blocks <- rv_gcal$ai_blocks
+
+    # Merge AI study blocks into gcal events
+    if (!is.null(ai_blocks) && nrow(ai_blocks) > 0) {
+      if (is.null(gcal_events) || nrow(gcal_events) == 0 || "error" %in% names(gcal_events)) {
+        gcal_events <- ai_blocks
+      } else {
+        # Add missing columns to both
+        if (!"is_ai" %in% names(gcal_events)) gcal_events$is_ai <- FALSE
+        if (!"color" %in% names(ai_blocks)) ai_blocks$color <- "purple"
+        common_cols <- intersect(names(gcal_events), names(ai_blocks))
+        gcal_events <- rbind(gcal_events[, common_cols], ai_blocks[, common_cols])
+      }
+    }
+
+    # If still no events, show placeholder
     if (is.null(gcal_events) || nrow(gcal_events) == 0) {
       return(tags$div(class = "text-center text-muted py-4",
         tags$p("📅 No hay eventos en el calendario."),
-        tags$p(class = "small", "Sincroniza con Google Calendar o sube tu horario con IA arriba.")
+        tags$p(class = "small", "Sincroniza con Google Calendar, sube tu horario con IA, o usa ✨ Autocompletar.")
       ))
     }
     cw <- rv$cal_week
@@ -1688,9 +1703,11 @@ server <- function(input, output, session) {
             evt_width <- if (n_overlaps > 1) paste0(floor(90 / n_overlaps), "%") else "92%"
             evt_left <- if (n_overlaps > 1) paste0(floor((overlap_idx - 1) * 90 / n_overlaps) + 2, "%") else "4%"
 
-            # Color by course name (matching Google Calendar colors)
-            name_lower <- tolower(ev$summary)
-            clr <- if (grepl("pco", name_lower)) "cyan"
+            # Color: use explicit color field (AI blocks) or detect by name
+            clr <- if ("color" %in% names(ev) && !is.null(ev$color) && nchar(ev$color) > 0) ev$color
+            else {
+              name_lower <- tolower(ev$summary)
+              if (grepl("pco|planifica", name_lower)) "cyan"
               else if (grepl("dise", name_lower)) "green"
               else if (grepl("data|analy", name_lower)) "blue"
               else if (grepl("gesti", name_lower)) "orange"
@@ -1699,6 +1716,7 @@ server <- function(input, output, session) {
               else if (grepl("comer|almuerz|comida|lunch|cena|desayun", name_lower)) "gray"
               else if (grepl("examen|quiz|pc[0-9]|parcial|final|evaluaci|E[PF][0-9]", ev$summary, ignore.case = TRUE)) "red"
               else "blue"
+            }
 
             event_divs <- c(event_divs, list(
               tags$div(class = paste0("cal-event cal-ev-", clr),
@@ -2203,21 +2221,25 @@ server <- function(input, output, session) {
         }
         message("[StudyPilot] Smart Scheduler: ", nrow(study_blocks), " study blocks generated!")
 
-        # Step 5: Display results
-        blocks_html <- paste(sapply(seq_len(nrow(study_blocks)), function(i) {
-          b <- study_blocks[i, ]
-          col <- switch(b$prioridad, alta = "#dc2626", media = "#d97706", baja = "#059669", "#2563eb")
-          paste0('<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;margin:3px 0;',
-                 'border-left:4px solid ', col, ';background:rgba(255,255,255,0.8);border-radius:8px;font-size:0.82rem;">',
-                 '<span style="min-width:100px;font-weight:600;color:#64748b;">', b$dia, ' ', b$hora_inicio, '-', b$hora_fin, '</span>',
-                 '<span style="font-weight:700;">', b$titulo, '</span>',
-                 '</div>')
-        }), collapse = "")
+        # Step 5: Convert to calendar events and inject
+        ai_events <- data.frame(
+          summary = study_blocks$titulo,
+          start = paste0(study_blocks$fecha, "T", study_blocks$hora_inicio),
+          end = paste0(study_blocks$fecha, "T", study_blocks$hora_fin),
+          location = "",
+          color = ifelse(study_blocks$tipo_bloque == "descanso", "gray",
+                    ifelse(study_blocks$prioridad == "alta", "purple",
+                      ifelse(study_blocks$prioridad == "media", "orange", "cyan"))),
+          is_ai = TRUE,
+          stringsAsFactors = FALSE
+        )
+        rv_gcal$ai_blocks <- ai_events
+        rv$refresh <- isolate(rv$refresh) + 1
 
         shinyjs::html("smart_sched_status", paste0(
-          '<div class="alert alert-success py-2 small mb-2">',
-          '✨ ', nrow(study_blocks), ' bloques de estudio generados para esta semana</div>',
-          '<div style="max-height:300px;overflow-y:auto;">', blocks_html, '</div>'
+          '<div class="alert alert-success py-2 small">',
+          '✨ ', nrow(study_blocks), ' bloques inyectados en tu calendario. ',
+          'Mira abajo para verlos en la grilla.</div>'
         ))
 
       }, error = function(e) {
@@ -2354,7 +2376,7 @@ server <- function(input, output, session) {
   })
 
   # ---- GOOGLE CALENDAR ----
-  rv_gcal <- reactiveValues(events = NULL)
+  rv_gcal <- reactiveValues(events = NULL, ai_blocks = NULL)
 
   observeEvent(input$gcal_sync, {
     email <- trimws(input$gcal_email)

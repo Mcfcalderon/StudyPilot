@@ -27,8 +27,16 @@ parse_ics_date <- function(dt_string) {
   if (nchar(dt_string) == 8) {
     paste0(substr(dt_string,1,4), "-", substr(dt_string,5,6), "-", substr(dt_string,7,8))
   } else if (nchar(dt_string) >= 15) {
-    paste0(substr(dt_string,1,4), "-", substr(dt_string,5,6), "-", substr(dt_string,7,8),
+    is_utc <- grepl("Z$", dt_string)
+    raw <- paste0(substr(dt_string,1,4), "-", substr(dt_string,5,6), "-", substr(dt_string,7,8),
            "T", substr(dt_string,10,11), ":", substr(dt_string,12,13))
+    # Convert UTC to Peru time (UTC-5) if Z suffix present
+    if (is_utc) {
+      utc_time <- as.POSIXct(paste0(raw, ":00"), tz = "UTC", format = "%Y-%m-%dT%H:%M:%S")
+      local_time <- format(utc_time, "%Y-%m-%dT%H:%M", tz = "America/Lima")
+      return(local_time)
+    }
+    raw
   } else {
     dt_string
   }
