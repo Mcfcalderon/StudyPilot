@@ -257,6 +257,24 @@ ui <- page_navbar(
         div(id = "schedule_status_div")
       )
     ),
+    # Smart Scheduler
+    div(class = "card mb-3",
+      div(class = "card-body py-2",
+        div(class = "d-flex flex-wrap gap-2 align-items-center",
+          tags$small(class = "fw-bold", "✨ Horario Inteligente:"),
+          div(style = "width:100px",
+            textInput("sleep_start", "Dormir:", value = "23:00", width = "100%")
+          ),
+          div(style = "width:100px",
+            textInput("sleep_end", "Despertar:", value = "07:00", width = "100%")
+          ),
+          actionButton("btn_gen_schedule", "✨ Autocompletar", class = "btn-sm btn-primary",
+            style = "background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;")
+        ),
+        tags$p(class = "text-muted small mb-0 mt-1", "La IA analiza tus evaluaciones pendientes y llena los huecos libres con bloques de estudio."),
+        div(id = "smart_sched_status")
+      )
+    ),
     # Google Calendar sync
     div(class = "d-flex flex-wrap gap-2 align-items-center mb-2 mt-1 px-1",
       tags$small(class = "fw-bold text-muted", "📅 Calendar:"),
@@ -1592,9 +1610,10 @@ server <- function(input, output, session) {
 
   # ---- SCHEDULE ----
   # Visual Calendar with multi-hour event blocks
-  HOUR_H <- 50  # pixels per hour
-  CAL_FIRST_HOUR <- 7
+  HOUR_H <- 48  # pixels per hour
+  CAL_FIRST_HOUR <- 0
   CAL_LAST_HOUR <- 23
+  CAL_SCROLL_TO <- 7  # auto-scroll to 7am on load
 
   output$visual_calendar <- renderUI({
     rv$refresh
@@ -1742,13 +1761,18 @@ server <- function(input, output, session) {
         tags$div(),  # spacer for time column
         allday_spans),
       # Scrollable body with time labels + day columns
-      tags$div(class = "cal-scroll-container",
+      tags$div(class = "cal-scroll-container", id = "cal-scroll-box",
         style = "max-height:550px; overflow-y:auto; position:relative;",
         tags$div(class = "cal-wrapper cal-body-row",
           time_col,
           day_cols
         )
-      )
+      ),
+      # Auto-scroll to 7am on render
+      tags$script(HTML(paste0(
+        "setTimeout(function(){var c=document.getElementById('cal-scroll-box');",
+        "if(c) c.scrollTop=", CAL_SCROLL_TO * HOUR_H, ";}, 300);"
+      )))
     )
   })
 
@@ -2111,6 +2135,99 @@ server <- function(input, output, session) {
     mg_schedule_set(uid(), data.frame())
     rv$refresh <- rv$refresh + 1
     shinyjs::html("schedule_status_div", '<div class="alert alert-info py-1 small">Horario limpiado.</div>')
+  })
+
+  # ---- SMART SCHEDULER: Autocompletar Horario Inteligente ----
+  observeEvent(input$btn_gen_schedule, {
+    shinyjs::disable("btn_gen_schedule")
+    shinyjs::html("smart_sched_status",
+      '<div class="alert alert-info py-2 small"><span class="spinner-border spinner-border-sm me-2"></span><b>Analizando evaluaciones y calendario...</b> (30-60 seg)</div>')
+
+    current_uid <- uid()
+    sleep_s <- input$sleep_start
+    sleep_e <- input$sleep_end
+
+    session$onFlushed(function() {
+      tryCatch({
+        # Step 1: Get courses and activities
+        message("[StudyPilot] Smart Scheduler Step 1: Loading data...")
+        all_c <- get0("courses", envir = globalenv())
+        all_a <- mg_activities_all(current_uid)
+        all_g <- mg_grades_all(current_uid)
+        if (nrow(all_c) == 0 || nrow(all_a) == 0) {
+          shinyjs::html("smart_sched_status",
+            '<div class="alert alert-warning py-2 small">No hay cursos o actividades. Sube tus sílabos primero.</div>')
+          shinyjs::enable("btn_gen_schedule")
+          return()
+        }
+
+        # Step 2: Calculate priorities
+        message("[StudyPilot] Smart Scheduler Step 2: Calculating priorities...")
+        prioridades <- calcular_prioridades_estudio(all_c, all_a, all_g)
+        if (nrow(prioridades) == 0) {
+          shinyjs::html("smart_sched_status",
+            '<div class="alert alert-warning py-2 small">No hay evaluaciones pendientes para planificar.</div>')
+          shinyjs::enable("btn_gen_schedule")
+          return()
+        }
+        message("[StudyPilot] Smart Scheduler: ", nrow(prioridades), " activities prioritized")
+
+        # Step 3: Get free time slots
+        message("[StudyPilot] Smart Scheduler Step 3: Finding free time...")
+        gcal_events <- isolate(rv_gcal$events)
+        sched_data <- tryCatch(mg_schedule_get(current_uid), error = function(e) data.frame())
+        free_slots <- get_free_time_slots(
+          gcal_events = gcal_events,
+          schedule_data = sched_data,
+          start_date = Sys.Date(),
+          end_date = Sys.Date() + 6,
+          sleep_start = sleep_s,
+          sleep_end = sleep_e
+        )
+        if (nrow(free_slots) == 0) {
+          shinyjs::html("smart_sched_status",
+            '<div class="alert alert-warning py-2 small">No se encontraron huecos libres en tu calendario esta semana.</div>')
+          shinyjs::enable("btn_gen_schedule")
+          return()
+        }
+        message("[StudyPilot] Smart Scheduler: ", nrow(free_slots), " free slots found")
+
+        # Step 4: Call LLM to generate study blocks
+        message("[StudyPilot] Smart Scheduler Step 4: Generating with AI...")
+        study_blocks <- generate_smart_schedule_llm(prioridades, free_slots)
+        if (nrow(study_blocks) == 0) {
+          shinyjs::html("smart_sched_status",
+            '<div class="alert alert-warning py-2 small">La IA no pudo generar bloques. Intenta de nuevo.</div>')
+          shinyjs::enable("btn_gen_schedule")
+          return()
+        }
+        message("[StudyPilot] Smart Scheduler: ", nrow(study_blocks), " study blocks generated!")
+
+        # Step 5: Display results
+        blocks_html <- paste(sapply(seq_len(nrow(study_blocks)), function(i) {
+          b <- study_blocks[i, ]
+          col <- switch(b$prioridad, alta = "#dc2626", media = "#d97706", baja = "#059669", "#2563eb")
+          paste0('<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;margin:3px 0;',
+                 'border-left:4px solid ', col, ';background:rgba(255,255,255,0.8);border-radius:8px;font-size:0.82rem;">',
+                 '<span style="min-width:100px;font-weight:600;color:#64748b;">', b$dia, ' ', b$hora_inicio, '-', b$hora_fin, '</span>',
+                 '<span style="font-weight:700;">', b$titulo, '</span>',
+                 '</div>')
+        }), collapse = "")
+
+        shinyjs::html("smart_sched_status", paste0(
+          '<div class="alert alert-success py-2 small mb-2">',
+          '✨ ', nrow(study_blocks), ' bloques de estudio generados para esta semana</div>',
+          '<div style="max-height:300px;overflow-y:auto;">', blocks_html, '</div>'
+        ))
+
+      }, error = function(e) {
+        err_msg <- e$message
+        if (grepl("429|503", err_msg)) err_msg <- "API de IA temporalmente no disponible. Espera 1 min e intenta de nuevo."
+        shinyjs::html("smart_sched_status",
+          paste0('<div class="alert alert-danger py-2 small">❌ ', err_msg, '</div>'))
+      })
+      shinyjs::enable("btn_gen_schedule")
+    }, once = TRUE)
   })
 
   # Render schedule grid (Google Calendar style)

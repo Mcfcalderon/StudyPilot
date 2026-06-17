@@ -309,3 +309,120 @@ generate_ics <- function(activities, courses_df) {
   lines <- c(lines, "END:VCALENDAR")
   paste(lines, collapse = "\r\n")
 }
+
+# ============ SMART SCHEDULER: FREE TIME EXTRACTION ============
+# Returns a data.frame of free time slots for a date range
+# Considers: Google Calendar events, MongoDB schedule, sleep block
+get_free_time_slots <- function(gcal_events = NULL, schedule_data = NULL,
+                                start_date = Sys.Date(), end_date = Sys.Date() + 6,
+                                sleep_start = "23:00", sleep_end = "07:00") {
+
+  # Parse sleep hours
+  sleep_sh <- as.numeric(substr(sleep_start, 1, 2)) + as.numeric(substr(sleep_start, 4, 5)) / 60
+  sleep_eh <- as.numeric(substr(sleep_end, 1, 2)) + as.numeric(substr(sleep_end, 4, 5)) / 60
+
+  all_free <- list()
+  dates <- seq.Date(start_date, end_date, by = "day")
+  day_names <- c("Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado")
+
+  for (dd in dates) {
+    dd <- as.Date(dd, origin = "1970-01-01")
+    day_name <- day_names[as.POSIXlt(dd)$wday + 1]
+
+    # Collect all busy intervals for this day as (start_hour, end_hour)
+    busy <- list()
+
+    # Add sleep block
+    if (sleep_sh > sleep_eh) {
+      # Sleep crosses midnight: 23:00-24:00 + 00:00-07:00
+      busy <- c(busy, list(c(sleep_sh, 24)), list(c(0, sleep_eh)))
+    } else {
+      busy <- c(busy, list(c(sleep_sh, sleep_eh)))
+    }
+
+    # Google Calendar events for this day
+    if (!is.null(gcal_events) && nrow(gcal_events) > 0 && !"error" %in% names(gcal_events)) {
+      day_evts <- gcal_events[as.Date(substr(gcal_events$start, 1, 10)) == dd &
+                              nchar(gcal_events$start) > 10, ]
+      if (nrow(day_evts) > 0) {
+        for (k in seq_len(nrow(day_evts))) {
+          sh <- suppressWarnings(as.numeric(substr(day_evts$start[k], 12, 13)) +
+                                 as.numeric(substr(day_evts$start[k], 15, 16)) / 60)
+          eh <- suppressWarnings(as.numeric(substr(day_evts$end[k], 12, 13)) +
+                                 as.numeric(substr(day_evts$end[k], 15, 16)) / 60)
+          if (!is.na(sh) && !is.na(eh) && eh > sh) busy <- c(busy, list(c(sh, eh)))
+        }
+      }
+    }
+
+    # MongoDB schedule (weekly recurring classes)
+    if (!is.null(schedule_data) && nrow(schedule_data) > 0) {
+      day_sched <- schedule_data[schedule_data$dia == day_name, ]
+      if (nrow(day_sched) > 0) {
+        for (k in seq_len(nrow(day_sched))) {
+          sh <- suppressWarnings(as.numeric(substr(day_sched$hora_inicio[k], 1, 2)) +
+                                 as.numeric(substr(day_sched$hora_inicio[k], 4, 5)) / 60)
+          eh <- suppressWarnings(as.numeric(substr(day_sched$hora_fin[k], 1, 2)) +
+                                 as.numeric(substr(day_sched$hora_fin[k], 4, 5)) / 60)
+          if (!is.na(sh) && !is.na(eh) && eh > sh) busy <- c(busy, list(c(sh, eh)))
+        }
+      }
+    }
+
+    # Sort busy intervals and merge overlapping
+    if (length(busy) > 0) {
+      busy_df <- do.call(rbind, busy)
+      busy_df <- busy_df[order(busy_df[, 1]), , drop = FALSE]
+      merged <- list()
+      current <- busy_df[1, ]
+      if (nrow(busy_df) > 1) {
+        for (j in 2:nrow(busy_df)) {
+          if (busy_df[j, 1] <= current[2]) {
+            current[2] <- max(current[2], busy_df[j, 2])
+          } else {
+            merged <- c(merged, list(current))
+            current <- busy_df[j, ]
+          }
+        }
+      }
+      merged <- c(merged, list(current))
+
+      # Find free gaps between merged busy intervals (within 0-24h)
+      free_start <- 0
+      for (m in merged) {
+        if (m[1] > free_start) {
+          duration_min <- round((m[1] - free_start) * 60)
+          if (duration_min >= 30) {  # Minimum 30 min slot
+            all_free <- c(all_free, list(data.frame(
+              date = as.character(dd),
+              day = day_name,
+              start_time = sprintf("%02d:%02d", floor(free_start), round((free_start %% 1) * 60)),
+              end_time = sprintf("%02d:%02d", floor(m[1]), round((m[1] %% 1) * 60)),
+              duration_min = duration_min,
+              stringsAsFactors = FALSE
+            )))
+          }
+        }
+        free_start <- m[2]
+      }
+      # Last gap to end of day
+      if (free_start < 24) {
+        duration_min <- round((24 - free_start) * 60)
+        if (duration_min >= 30) {
+          all_free <- c(all_free, list(data.frame(
+            date = as.character(dd),
+            day = day_name,
+            start_time = sprintf("%02d:%02d", floor(free_start), round((free_start %% 1) * 60)),
+            end_time = "23:59",
+            duration_min = duration_min,
+            stringsAsFactors = FALSE
+          )))
+        }
+      }
+    }
+  }
+
+  if (length(all_free) == 0) return(data.frame(date = character(), day = character(),
+    start_time = character(), end_time = character(), duration_min = integer()))
+  do.call(rbind, all_free)
+}

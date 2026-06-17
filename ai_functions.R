@@ -374,3 +374,77 @@ ai_extract_schedule <- function(schedule_text) {
     data.frame()
   })
 }
+
+# ============ SMART SCHEDULER: LLM STUDY BLOCK GENERATION ============
+generate_smart_schedule_llm <- function(df_prioridades, df_free_time) {
+  if (nrow(df_prioridades) == 0 || nrow(df_free_time) == 0) return(data.frame())
+
+  # Build JSON inputs for the LLM
+  study_items <- lapply(seq_len(min(nrow(df_prioridades), 15)), function(i) {
+    r <- df_prioridades[i, ]
+    list(
+      curso = r$course_name,
+      actividad = r$activity,
+      tipo = r$type,
+      peso = r$weight,
+      dias_restantes = r$days_left,
+      prioridad = r$priority_score,
+      temas = if (nchar(r$temas) > 0) strsplit(r$temas, " \\| ")[[1]] else list(),
+      es_calificada = r$is_calificada
+    )
+  })
+
+  free_slots <- lapply(seq_len(min(nrow(df_free_time), 40)), function(i) {
+    r <- df_free_time[i, ]
+    list(fecha = r$date, dia = r$day, inicio = r$start_time,
+         fin = r$end_time, duracion_min = r$duration_min)
+  })
+
+  study_json <- jsonlite::toJSON(study_items, auto_unbox = TRUE, pretty = FALSE)
+  slots_json <- jsonlite::toJSON(free_slots, auto_unbox = TRUE, pretty = FALSE)
+
+  prompt <- paste0(
+    "Eres un planificador académico inteligente. Tu tarea es asignar bloques de estudio ",
+    "en los huecos libres del calendario del estudiante.\n\n",
+    "REGLAS ESTRICTAS:\n",
+    "1. Solo usa los huecos libres proporcionados, NUNCA sobrepongas eventos existentes\n",
+    "2. Cada bloque de estudio debe durar entre 45 y 120 minutos\n",
+    "3. Prioriza las actividades con mayor score de prioridad\n",
+    "4. Si una actividad tiene temas vinculados, incluye el tema específico en el título\n",
+    "5. Alterna entre cursos para evitar fatiga (no más de 2 bloques seguidos del mismo curso)\n",
+    "6. Incluye descansos de 10 min entre bloques consecutivos\n",
+    "7. Para actividades calificadas, dedica más tiempo (90-120 min)\n",
+    "8. Para actividades formativas (no calificadas), bloques más cortos (45-60 min)\n",
+    "9. NO asignes estudio entre 22:00 y 07:00 aunque haya huecos libres\n\n",
+    "RESPONDE SOLO el JSON (sin markdown, sin ```json), con este formato exacto:\n",
+    '[{"fecha":"2026-06-12","dia":"Jueves","hora_inicio":"09:00","hora_fin":"10:30",',
+    '"titulo":"Estudiar: Clustering para Data Analytics",',
+    '"curso":"Data Analytics","tipo_bloque":"estudio","prioridad":"alta"}]\n\n',
+    "--- ACTIVIDADES A ESTUDIAR (ordenadas por prioridad) ---\n", study_json,
+    "\n\n--- HUECOS LIBRES DISPONIBLES ---\n", slots_json
+  )
+
+  message("[StudyPilot] Smart Scheduler: sending ", nrow(df_prioridades), " activities + ",
+          nrow(df_free_time), " free slots to AI")
+
+  tryCatch({
+    response <- ai_call(prompt)
+    message("[StudyPilot] Smart Scheduler AI response: ", nchar(response), " chars")
+    response <- gsub("```json\\s*", "", response)
+    response <- gsub("```\\s*", "", response)
+    response <- trimws(response)
+    if (nchar(response) < 5 || response == "[]") return(data.frame())
+    parsed <- jsonlite::fromJSON(response, simplifyVector = TRUE)
+    if (is.data.frame(parsed) && nrow(parsed) > 0) {
+      # Ensure required columns
+      for (col in c("fecha", "dia", "hora_inicio", "hora_fin", "titulo", "curso", "tipo_bloque", "prioridad")) {
+        if (!col %in% names(parsed)) parsed[[col]] <- ""
+      }
+      return(parsed)
+    }
+    data.frame()
+  }, error = function(e) {
+    message("[StudyPilot] Smart Scheduler error: ", e$message)
+    data.frame()
+  })
+}
