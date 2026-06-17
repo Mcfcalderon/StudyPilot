@@ -766,9 +766,16 @@ server <- function(input, output, session) {
     g <- cached_grades[cached_grades$course_id == cid, ]
     if (nrow(g) > 0 && "code" %in% names(g) && "grade" %in% names(g)) g <- g[, c("code", "grade")]
     else g <- data.frame(code = character(), grade = numeric())
-    # Use activities from MongoDB for evaluation weights
+    # Use ONLY calificada activities from MongoDB for grade calculation
     all_a <- acts()
     evals <- all_a[all_a$course_id == cid, ]
+    # Filter: exclude formativas (is_calificada == FALSE or weight == 0)
+    if (nrow(evals) > 0) {
+      if ("is_calificada" %in% names(evals)) {
+        evals <- evals[is.na(evals$is_calificada) | evals$is_calificada == TRUE, ]
+      }
+      evals <- evals[!is.na(evals$weight) & evals$weight > 0, ]
+    }
     if (nrow(evals) > 0) {
       for (j in seq_len(nrow(evals))) {
         if (is.null(evals$code[j]) || nchar(evals$code[j]) == 0) evals$code[j] <- paste0("E", j)
@@ -1253,10 +1260,14 @@ server <- function(input, output, session) {
     if (nrow(courses) > 0) course_choices <- c(course_choices, setNames(courses$id, courses$short))
     showModal(modalDialog(
       title = "Nueva Actividad",
-      textInput("new_act_name", "Nombre:", placeholder = "Ej: Entregar informe, Estudiar para parcial, Ir al gym..."),
+      textInput("new_act_name", "Nombre:", placeholder = "Ej: Entregar informe, Repaso de capítulos, Ir al gym..."),
       selectInput("new_act_course", "Curso (opcional):", choices = course_choices),
-      selectInput("new_act_type", "Tipo:", choices = c("tarea" = "tarea", "ec", "examen", "proyecto", "quiz", "personal" = "personal")),
-      numericInput("new_act_weight", "Peso (%):", value = 0, min = 0, max = 100),
+      selectInput("new_act_type", "Tipo:", choices = c("tarea" = "tarea", "ec", "examen", "proyecto", "quiz", "repaso" = "repaso", "personal" = "personal")),
+      checkboxInput("new_act_calificada", "📊 Es evaluación calificada (cuenta para la nota)", value = TRUE),
+      conditionalPanel(
+        condition = "input.new_act_calificada == true",
+        numericInput("new_act_weight", "Peso (%):", value = 0, min = 0, max = 100)
+      ),
       dateInput("new_act_date", "Fecha límite:", value = Sys.Date() + 7),
       uiOutput("new_act_topics_ui"),
       textInput("new_act_notes", "Notas:", placeholder = "Opcional"),
@@ -1285,10 +1296,12 @@ server <- function(input, output, session) {
       showNotification("Escribe un nombre para la actividad", type = "warning"); return()
     }
     act_course <- if (input$new_act_course == "_personal") "_personal" else input$new_act_course
-    temas_new <- input$new_act_topics  # NULL if not rendered or nothing selected
+    temas_new <- input$new_act_topics
+    is_cal <- isTRUE(input$new_act_calificada)
+    act_weight <- if (is_cal) input$new_act_weight else 0
     mg_activity_add(uid(), act_course, input$new_act_type,
       input$new_act_name, as.character(input$new_act_date),
-      input$new_act_weight, input$new_act_notes, temas = temas_new)
+      act_weight, input$new_act_notes, temas = temas_new, is_calificada = is_cal)
     rv$refresh <- rv$refresh + 1
     removeModal()
     showNotification(paste0("✅ Actividad '", input$new_act_name, "' creada"), type = "message")
@@ -1328,12 +1341,21 @@ server <- function(input, output, session) {
     # Get currently linked topics
     current_topics <- tryCatch(mg_activity_get_topics(uid(), row$act_id), error = function(e) character(0))
 
+    # Determine if currently calificada
+    is_cal_current <- TRUE
+    if ("is_calificada" %in% names(row)) is_cal_current <- isTRUE(row$is_calificada)
+    else if (row$weight == 0) is_cal_current <- FALSE
+
     showModal(modalDialog(
       title = paste0("Editar: ", row$name),
       textInput("edit_act_name", "Nombre:", value = row$name),
       selectInput("edit_act_type", "Tipo:",
-        choices = c("ec", "examen", "proyecto", "quiz", "tarea", "personal"), selected = row$type),
-      numericInput("edit_act_weight", "Peso (%):", value = row$weight, min = 0, max = 100),
+        choices = c("ec", "examen", "proyecto", "quiz", "tarea", "repaso", "personal"), selected = row$type),
+      checkboxInput("edit_act_calificada", "📊 Es evaluación calificada (cuenta para la nota)", value = is_cal_current),
+      conditionalPanel(
+        condition = "input.edit_act_calificada == true",
+        numericInput("edit_act_weight", "Peso (%):", value = row$weight, min = 0, max = 100)
+      ),
       dateInput("edit_act_date", "Fecha:", value = as.Date(row$date)),
       if (length(available_topics) > 0)
         selectizeInput("edit_act_topics", "📚 Temas vinculados:",
@@ -1352,13 +1374,18 @@ server <- function(input, output, session) {
 
   observeEvent(input$edit_act_save, {
     aid <- rv$editing_act_id
-    temas_sel <- input$edit_act_topics  # NULL if no selectize rendered
-    mg_activity_update(uid(), aid, input$edit_act_name, input$edit_act_weight,
-      as.character(input$edit_act_date), type = input$edit_act_type, temas = temas_sel)
+    temas_sel <- input$edit_act_topics
+    is_cal <- isTRUE(input$edit_act_calificada)
+    act_weight <- if (is_cal) input$edit_act_weight else 0
+    mg_activity_update(uid(), aid, input$edit_act_name, act_weight,
+      as.character(input$edit_act_date), type = input$edit_act_type,
+      temas = temas_sel, is_calificada = is_cal)
     rv$refresh <- rv$refresh + 1
     removeModal()
+    label <- if (is_cal) "calificada" else "formativa"
     n_temas <- if (!is.null(temas_sel)) length(temas_sel) else 0
-    showNotification(paste0("✅ Actividad actualizada", if (n_temas > 0) paste0(" (", n_temas, " temas vinculados)") else ""), type = "message")
+    showNotification(paste0("✅ Actividad ", label, " actualizada",
+      if (n_temas > 0) paste0(" (", n_temas, " temas)") else ""), type = "message")
   })
 
   # ---- ELIMINAR ACTIVIDADES (múltiple) ----
@@ -1399,8 +1426,12 @@ server <- function(input, output, session) {
 
     panels <- lapply(seq_len(nrow(courses)), function(i) {
       c_info <- courses[i, ]
-      # Use activities from MongoDB instead of hardcoded evaluations
+      # Use ONLY calificada activities for grades panel (exclude formativas)
       evals <- all_acts |> filter(course_id == c_info$id) |> arrange(date)
+      if (nrow(evals) > 0) {
+        if ("is_calificada" %in% names(evals)) evals <- evals[is.na(evals$is_calificada) | evals$is_calificada == TRUE, ]
+        evals <- evals[!is.na(evals$weight) & evals$weight > 0, ]
+      }
       if (nrow(evals) == 0) evals <- data.frame(act_id=integer(), name=character(), code=character(), type=character(), weight=numeric())
       # Generate code if empty
       for (j in seq_len(nrow(evals))) {

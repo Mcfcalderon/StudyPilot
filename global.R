@@ -169,15 +169,26 @@ calcular_prioridades_estudio <- function(df_cursos, df_actividades, df_grades = 
       }
     }
 
-    # Factor 3: Peso de la evaluación (0-1)
-    f_weight <- min(act$weight / 100, 1)
+    # Factor 3: Peso de la evaluación (0-1) — formativas (peso=0) tienen f_weight=0
+    act_weight <- if (!is.null(act$weight) && !is.na(act$weight)) act$weight else 0
+    f_weight <- min(act_weight / 100, 1)
+
+    # Determine if calificada
+    is_cal <- TRUE
+    if ("is_calificada" %in% names(act)) is_cal <- isTRUE(act$is_calificada)
+    else if (act_weight == 0) is_cal <- FALSE
 
     # Factor 4: Urgencia temporal (0-1) — menos días = más urgente
     days_left <- max(as.integer(as.Date(act$date) - today), 1)
-    f_urgency <- 1 / (1 + days_left / 7)  # Decay suave: 1 día=0.88, 7 días=0.5, 14 días=0.33
+    f_urgency <- 1 / (1 + days_left / 7)
 
-    # Score ponderado final
-    priority_score <- f_credits * 0.20 + f_deficit * 0.25 + f_weight * 0.25 + f_urgency * 0.30
+    # Score ponderado: formativas redistribuyen peso de f_weight a urgencia y déficit
+    if (is_cal) {
+      priority_score <- f_credits * 0.20 + f_deficit * 0.25 + f_weight * 0.25 + f_urgency * 0.30
+    } else {
+      # Formativa: sin peso académico, pero aún importa urgencia y déficit del curso
+      priority_score <- f_credits * 0.15 + f_deficit * 0.35 + f_urgency * 0.50
+    }
 
     # Temas vinculados
     temas <- if ("temas_vinculados" %in% names(act) && !is.null(act$temas_vinculados[[1]])) {
@@ -190,7 +201,8 @@ calcular_prioridades_estudio <- function(df_cursos, df_actividades, df_grades = 
       activity = act$name,
       act_id = act$act_id,
       type = act$type,
-      weight = act$weight,
+      weight = act_weight,
+      is_calificada = is_cal,
       date = act$date,
       days_left = days_left,
       credits = credits,

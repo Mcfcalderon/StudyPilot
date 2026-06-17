@@ -91,7 +91,7 @@ mg_activity_toggle <- function(uid, act_id, new_done) {
   a# connection reused
 }
 
-mg_activity_add <- function(uid, cid, type, name, date, weight, notes, temas = NULL) {
+mg_activity_add <- function(uid, cid, type, name, date, weight, notes, temas = NULL, is_calificada = TRUE) {
   a <- mongo_col("activities")
   if (is.null(a)) return(invisible(NULL))
   max_id <- 0
@@ -99,8 +99,9 @@ mg_activity_add <- function(uid, cid, type, name, date, weight, notes, temas = N
   if (nrow(existing) > 0) max_id <- existing$act_id[1]
   doc <- list(
     user_id = uid, act_id = max_id + 1L, course_id = cid, type = type, name = name,
-    code = "", date = date, week = 0L, weight = weight,
-    done = 0L, done_date = NA_character_, notes = notes
+    code = "", date = date, week = 0L, weight = as.numeric(weight),
+    done = 0L, done_date = NA_character_, notes = notes,
+    is_calificada = isTRUE(is_calificada)
   )
   if (!is.null(temas) && length(temas) > 0) doc$temas_vinculados <- temas
   a$insert(jsonlite::toJSON(doc, auto_unbox = TRUE))
@@ -264,11 +265,12 @@ mg_pomo_add <- function(uid, cid, duration) {
 }
 
 # ============ UPDATE ACTIVITY ============
-mg_activity_update <- function(uid, act_id, name, weight, date, type = NULL, temas = NULL) {
+mg_activity_update <- function(uid, act_id, name, weight, date, type = NULL, temas = NULL, is_calificada = NULL) {
   a <- mongo_col("activities")
   if (is.null(a)) return(invisible(NULL))
-  set_fields <- paste0('"name":"', name, '","weight":', weight, ',"date":"', date, '"')
+  set_fields <- paste0('"name":"', name, '","weight":', as.numeric(weight), ',"date":"', date, '"')
   if (!is.null(type) && nchar(type) > 0) set_fields <- paste0(set_fields, ',"type":"', type, '"')
+  if (!is.null(is_calificada)) set_fields <- paste0(set_fields, ',"is_calificada":', tolower(as.character(isTRUE(is_calificada))))
   if (!is.null(temas)) {
     temas_json <- jsonlite::toJSON(temas, auto_unbox = FALSE)
     set_fields <- paste0(set_fields, ',"temas_vinculados":', temas_json)
