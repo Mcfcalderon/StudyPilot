@@ -318,16 +318,13 @@ generate_ics <- function(activities, courses_df) {
   paste(lines, collapse = "\r\n")
 }
 
-# ============ SMART SCHEDULER: FREE TIME EXTRACTION ============
-# Returns a data.frame of free time slots for a date range
-# Considers: Google Calendar events, MongoDB schedule, sleep block
-get_free_time_slots <- function(gcal_events = NULL, schedule_data = NULL,
-                                start_date = Sys.Date(), end_date = Sys.Date() + 6,
-                                sleep_start = "23:00", sleep_end = "07:00") {
-
-  # Parse sleep hours
-  sleep_sh <- as.numeric(substr(sleep_start, 1, 2)) + as.numeric(substr(sleep_start, 4, 5)) / 60
-  sleep_eh <- as.numeric(substr(sleep_end, 1, 2)) + as.numeric(substr(sleep_end, 4, 5)) / 60
+# ============ SMART SCHEDULER: FREE TIME (lubridate intervals) ============
+# Uses lubridate::interval() for precise anti-overlap calculation
+obtener_espacio_libre <- function(gcal_events = NULL, schedule_data = NULL,
+                                  start_date = Sys.Date(), end_date = Sys.Date() + 6,
+                                  sleep_start = "23:00", sleep_end = "07:00") {
+  library(lubridate)
+  tz_local <- "America/Lima"
 
   all_free <- list()
   dates <- seq.Date(start_date, end_date, by = "day")
@@ -335,94 +332,104 @@ get_free_time_slots <- function(gcal_events = NULL, schedule_data = NULL,
 
   for (dd in dates) {
     dd <- as.Date(dd, origin = "1970-01-01")
-    day_name <- day_names[as.POSIXlt(dd)$wday + 1]
+    day_name <- day_names[wday(dd)]
 
-    # Collect all busy intervals for this day as (start_hour, end_hour)
-    busy <- list()
+    # Full day interval
+    day_start <- as.POSIXct(paste(dd, "00:00:00"), tz = tz_local)
+    day_end   <- as.POSIXct(paste(dd, "23:59:59"), tz = tz_local)
 
-    # Add sleep block
-    if (sleep_sh > sleep_eh) {
-      # Sleep crosses midnight: 23:00-24:00 + 00:00-07:00
-      busy <- c(busy, list(c(sleep_sh, 24)), list(c(0, sleep_eh)))
+    # Collect all busy intervals as lubridate intervals
+    busy_intervals <- list()
+
+    # Sleep block (crosses midnight if sleep_start > sleep_end)
+    sl_s <- as.POSIXct(paste(dd, paste0(sleep_start, ":00")), tz = tz_local)
+    sl_e <- as.POSIXct(paste(dd, paste0(sleep_end, ":00")), tz = tz_local)
+    if (sl_s > sl_e) {
+      busy_intervals <- c(busy_intervals,
+        list(interval(sl_s, day_end, tzone = tz_local)),
+        list(interval(day_start, sl_e, tzone = tz_local))
+      )
     } else {
-      busy <- c(busy, list(c(sleep_sh, sleep_eh)))
+      busy_intervals <- c(busy_intervals, list(interval(sl_s, sl_e, tzone = tz_local)))
     }
 
-    # Google Calendar events for this day
+    # Google Calendar events
     if (!is.null(gcal_events) && nrow(gcal_events) > 0 && !"error" %in% names(gcal_events)) {
       day_evts <- gcal_events[as.Date(substr(gcal_events$start, 1, 10)) == dd &
                               nchar(gcal_events$start) > 10, ]
-      if (nrow(day_evts) > 0) {
-        for (k in seq_len(nrow(day_evts))) {
-          sh <- suppressWarnings(as.numeric(substr(day_evts$start[k], 12, 13)) +
-                                 as.numeric(substr(day_evts$start[k], 15, 16)) / 60)
-          eh <- suppressWarnings(as.numeric(substr(day_evts$end[k], 12, 13)) +
-                                 as.numeric(substr(day_evts$end[k], 15, 16)) / 60)
-          if (!is.na(sh) && !is.na(eh) && eh > sh) busy <- c(busy, list(c(sh, eh)))
+      for (k in seq_len(nrow(day_evts))) {
+        ev_s <- tryCatch(as.POSIXct(paste0(substr(day_evts$start[k], 1, 16), ":00"), tz = tz_local), error = function(e) NULL)
+        ev_e <- tryCatch(as.POSIXct(paste0(substr(day_evts$end[k], 1, 16), ":00"), tz = tz_local), error = function(e) NULL)
+        if (!is.null(ev_s) && !is.null(ev_e) && ev_e > ev_s) {
+          busy_intervals <- c(busy_intervals, list(interval(ev_s, ev_e, tzone = tz_local)))
         }
       }
     }
 
-    # MongoDB schedule (weekly recurring classes)
+    # MongoDB schedule (recurring weekly classes)
     if (!is.null(schedule_data) && nrow(schedule_data) > 0) {
       day_sched <- schedule_data[schedule_data$dia == day_name, ]
-      if (nrow(day_sched) > 0) {
-        for (k in seq_len(nrow(day_sched))) {
-          sh <- suppressWarnings(as.numeric(substr(day_sched$hora_inicio[k], 1, 2)) +
-                                 as.numeric(substr(day_sched$hora_inicio[k], 4, 5)) / 60)
-          eh <- suppressWarnings(as.numeric(substr(day_sched$hora_fin[k], 1, 2)) +
-                                 as.numeric(substr(day_sched$hora_fin[k], 4, 5)) / 60)
-          if (!is.na(sh) && !is.na(eh) && eh > sh) busy <- c(busy, list(c(sh, eh)))
+      for (k in seq_len(nrow(day_sched))) {
+        sc_s <- tryCatch(as.POSIXct(paste(dd, paste0(day_sched$hora_inicio[k], ":00")), tz = tz_local), error = function(e) NULL)
+        sc_e <- tryCatch(as.POSIXct(paste(dd, paste0(day_sched$hora_fin[k], ":00")), tz = tz_local), error = function(e) NULL)
+        if (!is.null(sc_s) && !is.null(sc_e) && sc_e > sc_s) {
+          busy_intervals <- c(busy_intervals, list(interval(sc_s, sc_e, tzone = tz_local)))
         }
       }
     }
 
-    # Sort busy intervals and merge overlapping
-    if (length(busy) > 0) {
-      busy_df <- do.call(rbind, busy)
-      busy_df <- busy_df[order(busy_df[, 1]), , drop = FALSE]
+    # Sort busy by start, merge overlapping
+    if (length(busy_intervals) > 0) {
+      starts <- sapply(busy_intervals, int_start)
+      ends   <- sapply(busy_intervals, int_end)
+      ord <- order(starts)
+      starts <- starts[ord]; ends <- ends[ord]
+
+      merged_s <- starts[1]; merged_e <- ends[1]
       merged <- list()
-      current <- busy_df[1, ]
-      if (nrow(busy_df) > 1) {
-        for (j in 2:nrow(busy_df)) {
-          if (busy_df[j, 1] <= current[2]) {
-            current[2] <- max(current[2], busy_df[j, 2])
-          } else {
-            merged <- c(merged, list(current))
-            current <- busy_df[j, ]
-          }
+      for (j in seq_along(starts)) {
+        if (starts[j] <= merged_e) {
+          merged_e <- max(merged_e, ends[j])
+        } else {
+          merged <- c(merged, list(c(merged_s, merged_e)))
+          merged_s <- starts[j]; merged_e <- ends[j]
         }
       }
-      merged <- c(merged, list(current))
+      merged <- c(merged, list(c(merged_s, merged_e)))
 
-      # Find free gaps between merged busy intervals (within 0-24h)
-      free_start <- 0
+      # Extract free gaps
+      cursor <- as.numeric(day_start)
       for (m in merged) {
-        if (m[1] > free_start) {
-          duration_min <- round((m[1] - free_start) * 60)
-          if (duration_min >= 30) {  # Minimum 30 min slot
+        if (m[1] > cursor) {
+          gap_min <- round((m[1] - cursor) / 60)
+          if (gap_min >= 30) {
+            free_s <- as.POSIXct(cursor, origin = "1970-01-01", tz = tz_local)
+            free_e <- as.POSIXct(m[1], origin = "1970-01-01", tz = tz_local)
             all_free <- c(all_free, list(data.frame(
-              date = as.character(dd),
-              day = day_name,
-              start_time = sprintf("%02d:%02d", floor(free_start), round((free_start %% 1) * 60)),
-              end_time = sprintf("%02d:%02d", floor(m[1]), round((m[1] %% 1) * 60)),
-              duration_min = duration_min,
+              date = as.character(dd), day = day_name,
+              start_time = format(free_s, "%H:%M"),
+              end_time = format(free_e, "%H:%M"),
+              start_iso = format(free_s, "%Y-%m-%dT%H:%M:%S"),
+              end_iso = format(free_e, "%Y-%m-%dT%H:%M:%S"),
+              duration_min = gap_min,
               stringsAsFactors = FALSE
             )))
           }
         }
-        free_start <- m[2]
+        cursor <- m[2]
       }
-      # Last gap to end of day
-      if (free_start < 24) {
-        duration_min <- round((24 - free_start) * 60)
-        if (duration_min >= 30) {
+      # Last gap
+      if (cursor < as.numeric(day_end)) {
+        gap_min <- round((as.numeric(day_end) - cursor) / 60)
+        if (gap_min >= 30) {
+          free_s <- as.POSIXct(cursor, origin = "1970-01-01", tz = tz_local)
           all_free <- c(all_free, list(data.frame(
-            date = as.character(dd),
-            day = day_name,
-            start_time = sprintf("%02d:%02d", floor(free_start), round((free_start %% 1) * 60)),
+            date = as.character(dd), day = day_name,
+            start_time = format(free_s, "%H:%M"),
             end_time = "23:59",
-            duration_min = duration_min,
+            start_iso = format(free_s, "%Y-%m-%dT%H:%M:%S"),
+            end_iso = format(day_end, "%Y-%m-%dT%H:%M:%S"),
+            duration_min = gap_min,
             stringsAsFactors = FALSE
           )))
         }
@@ -431,6 +438,9 @@ get_free_time_slots <- function(gcal_events = NULL, schedule_data = NULL,
   }
 
   if (length(all_free) == 0) return(data.frame(date = character(), day = character(),
-    start_time = character(), end_time = character(), duration_min = integer()))
+    start_time = character(), end_time = character(), start_iso = character(),
+    end_iso = character(), duration_min = integer()))
   do.call(rbind, all_free)
 }
+# Keep old name as alias for compatibility
+get_free_time_slots <- obtener_espacio_libre

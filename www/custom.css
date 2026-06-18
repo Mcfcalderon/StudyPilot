@@ -370,6 +370,21 @@ table.dataTable tbody tr.selected { background: rgba(37,99,235,0.1) !important; 
 .cal-ev-yellow { background: #eab308; border-left-color: #ca8a04; color: #1e293b !important; }
 .cal-ev-gray { background: #94a3b8; border-left-color: #64748b; }
 .cal-ev-purple { background: #8b5cf6; border-left-color: #7c3aed; }
+/* AI-generated events: translucent with dashed border, clickable */
+.cal-ev-ai {
+  opacity: 0.88 !important;
+  border-style: dashed !important;
+  border-width: 2px !important;
+  background-image: repeating-linear-gradient(
+    45deg, transparent, transparent 5px, rgba(255,255,255,0.15) 5px, rgba(255,255,255,0.15) 10px
+  ) !important;
+  cursor: pointer !important;
+  transition: opacity 0.2s, transform 0.2s;
+}
+.cal-ev-ai:hover { opacity: 1 !important; transform: scale(1.02); box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important; }
+/* Google/manual events: solid, not clickable */
+.cal-ev-locked { cursor: default !important; opacity: 1 !important; }
+
 /* All-day banner */
 .cal-allday {
   background: linear-gradient(90deg, #fef3c7, #fde68a);

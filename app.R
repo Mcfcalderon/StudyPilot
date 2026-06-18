@@ -1680,8 +1680,11 @@ server <- function(input, output, session) {
           # Parse all event times first (for overlap detection)
           ev_times <- lapply(seq_len(nrow(day_evts)), function(k) {
             ev <- day_evts[k, ]
-            sh <- suppressWarnings(as.numeric(substr(ev$start,12,13)) + as.numeric(substr(ev$start,15,16))/60)
-            eh <- suppressWarnings(as.numeric(substr(ev$end,12,13)) + as.numeric(substr(ev$end,15,16))/60)
+            # Parse hours from ISO string (already in local time after timezone fix)
+            start_str <- substr(ev$start, 1, 16)
+            end_str <- substr(ev$end, 1, 16)
+            sh <- suppressWarnings(as.numeric(substr(start_str,12,13)) + as.numeric(substr(start_str,15,16))/60)
+            eh <- suppressWarnings(as.numeric(substr(end_str,12,13)) + as.numeric(substr(end_str,15,16))/60)
             # All-day events: skip here, rendered separately as banners
             if (is.na(sh) || is.na(eh)) { next }
             if (eh <= sh) eh <- sh + 1
@@ -1718,9 +1721,17 @@ server <- function(input, output, session) {
               else "blue"
             }
 
+            # Determine if AI-generated event
+            is_ai <- !is.null(ev$is_ai) && isTRUE(ev$is_ai)
+            ai_class <- if (is_ai) " cal-ev-ai" else " cal-ev-locked"
+
             event_divs <- c(event_divs, list(
-              tags$div(class = paste0("cal-event cal-ev-", clr),
-                style = paste0("top:", top_px, "px; height:", height_px, "px; width:", evt_width, "; left:", evt_left, ";"),
+              tags$div(class = paste0("cal-event cal-ev-", clr, ai_class),
+                style = paste0("top:", top_px, "px; height:", height_px, "px; width:", evt_width, "; left:", evt_left, ";",
+                  if (is_ai) "cursor:pointer;opacity:0.92;" else ""),
+                onclick = if (is_ai) paste0("Shiny.setInputValue('cal_event_click',{title:'",
+                  gsub("'", "\\\\'", ev$summary), "',start:'", start_str, "',end:'", end_str,
+                  "',idx:", k, "},{priority:'event'})") else "",
                 tags$div(class = "cal-ev-name", ev$summary),
                 tags$div(class = "cal-ev-time", time_label),
                 if (nchar(ev$location) > 0) tags$div(class = "cal-ev-room", ev$location)
@@ -2147,6 +2158,58 @@ server <- function(input, output, session) {
       })
       shinyjs::enable("schedule_extract_btn")
     }, once = TRUE)
+  })
+
+  # ---- Calendar event click-to-edit (AI events only) ----
+  observeEvent(input$cal_event_click, {
+    ev <- input$cal_event_click
+    if (is.null(ev)) return()
+    showModal(modalDialog(
+      title = paste0("Editar: ", ev$title),
+      textInput("cal_edit_title", "Título:", value = ev$title),
+      textInput("cal_edit_start", "Hora inicio (HH:MM):", value = substr(ev$start, 12, 16)),
+      textInput("cal_edit_end", "Hora fin (HH:MM):", value = substr(ev$end, 12, 16)),
+      tags$p(class = "text-muted small", "Solo los bloques 🤖 generados por IA son editables."),
+      footer = tagList(
+        actionButton("cal_edit_delete", "🗑 Eliminar bloque", class = "btn-outline-danger"),
+        modalButton("Cancelar"),
+        actionButton("cal_edit_save", "💾 Guardar", class = "btn-primary")
+      ),
+      easyClose = TRUE
+    ))
+  })
+
+  observeEvent(input$cal_edit_save, {
+    ai_blocks <- rv_gcal$ai_blocks
+    if (!is.null(ai_blocks) && nrow(ai_blocks) > 0) {
+      ev <- input$cal_event_click
+      # Find and update the matching block
+      match_idx <- which(ai_blocks$summary == ev$title & substr(ai_blocks$start, 1, 16) == substr(ev$start, 1, 16))
+      if (length(match_idx) > 0) {
+        date_part <- substr(ai_blocks$start[match_idx[1]], 1, 10)
+        ai_blocks$summary[match_idx[1]] <- input$cal_edit_title
+        ai_blocks$start[match_idx[1]] <- paste0(date_part, "T", input$cal_edit_start)
+        ai_blocks$end[match_idx[1]] <- paste0(date_part, "T", input$cal_edit_end)
+        rv_gcal$ai_blocks <- ai_blocks
+        rv$refresh <- rv$refresh + 1
+      }
+    }
+    removeModal()
+    showNotification("✅ Bloque actualizado", type = "message")
+  })
+
+  observeEvent(input$cal_edit_delete, {
+    ai_blocks <- rv_gcal$ai_blocks
+    if (!is.null(ai_blocks) && nrow(ai_blocks) > 0) {
+      ev <- input$cal_event_click
+      match_idx <- which(ai_blocks$summary == ev$title & substr(ai_blocks$start, 1, 16) == substr(ev$start, 1, 16))
+      if (length(match_idx) > 0) {
+        rv_gcal$ai_blocks <- ai_blocks[-match_idx[1], ]
+        rv$refresh <- rv$refresh + 1
+      }
+    }
+    removeModal()
+    showNotification("🗑 Bloque eliminado", type = "warning")
   })
 
   observeEvent(input$schedule_clear_btn, {
