@@ -354,8 +354,12 @@ table.dataTable tbody tr.selected { background: rgba(37,99,235,0.1) !important; 
   position: absolute !important; border-radius: 6px; padding: 3px 6px;
   font-size: 0.7rem; overflow: hidden;
   box-shadow: 0 1px 4px rgba(0,0,0,0.12);
-  cursor: default; z-index: 1; border-left: 3px solid rgba(0,0,0,0.2);
+  cursor: pointer; z-index: 1;
   color: #fff !important;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+.cal-event:hover {
+  transform: scale(1.02); box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important; z-index: 5;
 }
 .cal-ev-name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cal-ev-time { font-size: 0.6rem; opacity: 0.85; }
@@ -417,9 +421,98 @@ table.dataTable tbody tr.selected { background: rgba(37,99,235,0.1) !important; 
 .chat-ai p { margin-bottom: 6px; }
 .chat-ai ul, .chat-ai ol { padding-left: 18px; margin-bottom: 6px; }
 
+/* ============ OPCIÓN NUCLEAR: Silenciar TODA UI de desconexión de Shiny ============ */
+#shiny-disconnected-overlay,
+#shiny-reconnect-text,
+.shiny-output-error,
+#shiny-notification-panel,
+.shiny-notification,
+.shiny-notification-close {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  z-index: -1 !important;
+}
+
+/* Shiny agrega 'shiny-busy' class y grays out la UI — cancelar */
+body.shiny-busy { filter: none !important; }
+
+/* Nunca bloquear interacción del usuario */
+html, body {
+  pointer-events: auto !important;
+  filter: none !important;
+  -webkit-filter: none !important;
+}
+
+/* El recuadro gris "Attempting to reconnect" y "Disconnected from server" */
+.shiny-notification-content,
+.shiny-notification-message {
+  display: none !important;
+}
+
+/* ---- Offline Banner ---- */
+#offline-banner {
+  display: none; position: fixed; top: 0; left: 0; width: 100%; z-index: 99998;
+  background: #fbbf24; color: #92400e; padding: 6px 16px;
+  font-size: 0.8rem; font-weight: 600;
+  align-items: center; justify-content: center; gap: 8px;
+}
+
 /* ---- Print ---- */
 @media print {
-  .navbar, .chat-float-btn, .chat-float-panel, #auth_overlay { display: none !important; }
+  .navbar, .chat-float-btn, .chat-float-panel, #auth_overlay, #offline-banner { display: none !important; }
   body { background: #fff !important; }
   .card { box-shadow: none !important; border: 1px solid #ddd !important; }
+}
+
+/* ============ RESPONSIVE: MÓVIL (<768px) ============ */
+@media (max-width: 768px) {
+  /* Compact navbar */
+  .navbar .nav-link { font-size: 0.75rem !important; padding: 4px 8px !important; }
+  .navbar-brand { font-size: 1rem !important; }
+
+  /* Cards smaller padding */
+  .card-body { padding: 12px !important; }
+
+  /* Calendar: hide DOM/SAB columns, show only LUN-VIE (5 days) */
+  .cal-wrapper { grid-template-columns: 40px repeat(7, 1fr) !important; }
+  .cal-header { font-size: 0.65rem !important; padding: 4px 2px !important; }
+  .cal-header .cal-day-name { font-size: 0.6rem; }
+  .cal-header .cal-day-num { font-size: 1rem; }
+  .cal-hour-label { font-size: 0.6rem !important; padding-right: 3px !important; }
+  .cal-event .cal-ev-name { font-size: 0.6rem !important; }
+  .cal-event .cal-ev-time { font-size: 0.55rem !important; }
+  .cal-event .cal-ev-room { display: none !important; }
+
+  /* Scroll container shorter on mobile */
+  .cal-scroll-container { max-height: 400px !important; }
+
+  /* Schedule grid table: scrollable */
+  .schedule-grid-wrapper { overflow-x: auto; }
+
+  /* Auth card */
+  .auth-card { padding: 24px 20px !important; width: 95vw !important; }
+
+  /* Sidebar inputs: full width */
+  .d-flex.gap-2 { flex-wrap: wrap !important; }
+
+  /* File inputs */
+  .form-control[type="file"] { font-size: 0.75rem; }
+
+  /* Pomodoro compact */
+  #pomo-timer { font-size: 2.5rem !important; }
+}
+
+/* ============ RESPONSIVE: TABLET (768-1024px) ============ */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .cal-wrapper { grid-template-columns: 45px repeat(7, 1fr) !important; }
+  .cal-event .cal-ev-room { font-size: 0.55rem; }
+}
+
+/* ============ PWA STANDALONE MODE ============ */
+@media (display-mode: standalone) {
+  /* Extra top padding for status bar */
+  body { padding-top: env(safe-area-inset-top, 0); }
+  .navbar { padding-top: env(safe-area-inset-top, 0) !important; }
 }

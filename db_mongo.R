@@ -317,3 +317,42 @@ mg_schedule_set <- function(uid, schedule_df) {
   }
   s# connection reused
 }
+
+# ============ CALENDAR OVERRIDES (per-user: ediciones locales de eventos) ============
+mg_cal_overrides_get <- function(uid) {
+  col <- mongo_col("cal_overrides")
+  if (is.null(col)) return(data.frame())
+  result <- tryCatch(col$find(uf(uid)), error = function(e) data.frame())
+  if (nrow(result) > 0 && "user_id" %in% names(result)) result$user_id <- NULL
+  if (nrow(result) > 0 && "_id" %in% names(result)) result[["_id"]] <- NULL
+  result
+}
+
+mg_cal_overrides_set <- function(uid, overrides_df) {
+  col <- mongo_col("cal_overrides")
+  if (is.null(col)) return(invisible(NULL))
+  col$remove(uf(uid))
+  if (!is.null(overrides_df) && is.data.frame(overrides_df) && nrow(overrides_df) > 0) {
+    overrides_df$user_id <- uid
+    col$insert(overrides_df)
+  }
+}
+
+# ============ CALENDAR HIDDEN EVENTS (per-user: eventos ocultados) ============
+mg_cal_hidden_get <- function(uid) {
+  col <- mongo_col("cal_hidden")
+  if (is.null(col)) return(character())
+  result <- tryCatch(col$find(uf(uid)), error = function(e) data.frame())
+  if (nrow(result) > 0 && "key" %in% names(result)) return(result$key)
+  character()
+}
+
+mg_cal_hidden_set <- function(uid, hidden_keys) {
+  col <- mongo_col("cal_hidden")
+  if (is.null(col)) return(invisible(NULL))
+  col$remove(uf(uid))
+  if (length(hidden_keys) > 0) {
+    df <- data.frame(user_id = uid, key = hidden_keys, stringsAsFactors = FALSE)
+    col$insert(df)
+  }
+}

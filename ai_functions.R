@@ -376,7 +376,8 @@ ai_extract_schedule <- function(schedule_text) {
 }
 
 # ============ SMART SCHEDULER: LLM STUDY BLOCK GENERATION ============
-generate_smart_schedule_llm <- function(df_prioridades, df_free_time) {
+generate_smart_schedule_llm <- function(df_prioridades, df_free_time,
+                                       weeks_remaining = 1, semester_end = NULL) {
   if (nrow(df_prioridades) == 0 || nrow(df_free_time) == 0) return(data.frame())
 
   # Build JSON inputs for the LLM
@@ -422,8 +423,13 @@ generate_smart_schedule_llm <- function(df_prioridades, df_free_time) {
     '[{"fecha":"2026-06-12","dia":"Jueves","hora_inicio":"09:00","hora_fin":"10:30",',
     '"titulo":"\\ud83e\\udd16 Data Analytics: Clustering y K-means",',
     '"curso":"Data Analytics","tipo_bloque":"estudio","prioridad":"alta"}]\n\n',
+    "--- CONTEXTO DEL SEMESTRE ---\n",
+    "Semanas restantes hasta fin de ciclo: ", weeks_remaining, "\n",
+    if (!is.null(semester_end)) paste0("Fecha fin del horizonte: ", semester_end, "\n") else "",
+    "Distribuye el estudio proporcionalmente: si un examen es en 3 semanas, empieza ",
+    "con sesiones ligeras ahora y aumenta la intensidad conforme se acerque.\n\n",
     "--- ACTIVIDADES A ESTUDIAR (ordenadas por prioridad) ---\n", study_json,
-    "\n\n--- HUECOS LIBRES DISPONIBLES ---\n", slots_json
+    "\n\n--- HUECOS LIBRES DISPONIBLES (esta semana) ---\n", slots_json
   )
 
   message("[StudyPilot] Smart Scheduler: sending ", nrow(df_prioridades), " activities + ",

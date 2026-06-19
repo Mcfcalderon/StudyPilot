@@ -1,3 +1,5 @@
+options(shiny.maxRequestSize = 50 * 1024^2)  # 50 MB para batch upload de sílabos
+
 source("global.R")
 source("db_mongo.R")
 source("ai_functions.R")
@@ -242,50 +244,45 @@ ui <- page_navbar(
   # ---- Calendario (Horario) ----
   nav_panel(
     title = "📅 Calendario",
-    # Schedule from PDF with AI
+    # Cascada Inteligente: Panel unificado de configuración
     div(class = "card mb-3",
       div(class = "card-body py-2",
-        div(class = "d-flex flex-wrap gap-2 align-items-center",
-          tags$small(class = "fw-bold", "📋 Generar horario:"),
+        # Fila 1: Subir PDF de horario
+        div(class = "d-flex flex-wrap gap-2 align-items-center mb-2",
+          tags$small(class = "fw-bold", "📋 Horario Base:"),
           div(style = "flex:1;max-width:300px",
             fileInput("schedule_file", NULL, accept = c(".pdf", ".txt", ".docx"),
-                      placeholder = "Subir PDF de horario", width = "100%")
+                      placeholder = "Subir consolidado PDF", width = "100%")
           ),
           actionButton("schedule_extract_btn", "🤖 Extraer con IA", class = "btn-sm btn-success"),
-          actionButton("schedule_clear_btn", "🗑 Limpiar", class = "btn-sm btn-outline-danger")
+          actionButton("schedule_clear_btn", "🗑", class = "btn-sm btn-outline-danger btn-sm", title = "Limpiar horario base")
         ),
-        div(id = "schedule_status_div")
-      )
-    ),
-    # Smart Scheduler
-    div(class = "card mb-3",
-      div(class = "card-body py-2",
+        div(id = "schedule_status_div"),
+        tags$hr(class = "my-2"),
+        # Fila 2: Google Calendar + Smart Scheduler en una sola línea
         div(class = "d-flex flex-wrap gap-2 align-items-center",
-          tags$small(class = "fw-bold", "✨ Horario Inteligente:"),
-          div(style = "width:100px",
-            textInput("sleep_start", "Dormir:", value = "23:00", width = "100%")
+          tags$small(class = "fw-bold text-muted", "📅 Google:"),
+          div(style = "flex:1;max-width:250px",
+            textInput("gcal_email", NULL, value = "", placeholder = "tu.email@gmail.com", width = "100%")
           ),
-          div(style = "width:100px",
-            textInput("sleep_end", "Despertar:", value = "07:00", width = "100%")
+          actionButton("gcal_sync", "🔄 Sync", class = "btn-sm btn-outline-primary", title = "Sincronizar Google Calendar"),
+          tags$span(class = "text-muted mx-1", "|"),
+          div(style = "width:80px",
+            textInput("sleep_start", NULL, value = "23:00", placeholder = "Dormir", width = "100%")
           ),
-          actionButton("btn_gen_schedule", "✨ Autocompletar", class = "btn-sm btn-primary",
-            style = "background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;")
+          div(style = "width:80px",
+            textInput("sleep_end", NULL, value = "07:00", placeholder = "Despertar", width = "100%")
+          ),
+          actionButton("btn_gen_schedule", "✨ Generar Horario Inteligente", class = "btn-sm btn-primary",
+            style = "background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;font-weight:600;"),
+          downloadButton("download_ics", "📅 .ics", class = "btn-sm btn-outline-success")
         ),
-        tags$p(class = "text-muted small mb-0 mt-1", "La IA analiza tus evaluaciones pendientes y llena los huecos libres con bloques de estudio."),
-        div(id = "smart_sched_status")
+        div(id = "gcal_status_div"),
+        div(id = "smart_sched_status"),
+        tags$p(class = "text-muted small mb-0 mt-1",
+          "Flujo: Sube PDF → Sincroniza Google → ✨ La IA fusiona todo y llena huecos con bloques de estudio.")
       )
     ),
-    # Google Calendar sync
-    div(class = "d-flex flex-wrap gap-2 align-items-center mb-2 mt-1 px-1",
-      tags$small(class = "fw-bold text-muted", "📅 Calendar:"),
-      div(style = "flex:1;max-width:350px",
-        textInput("gcal_email", NULL, value = "", placeholder = "tu.email@gmail.com", width = "100%")
-      ),
-      actionButton("gcal_sync", "🔄", class = "btn-sm btn-primary", title = "Sincronizar"),
-      actionButton("gcal_clear", "🗑", class = "btn-sm btn-outline-secondary", title = "Limpiar"),
-      downloadButton("download_ics", "📅 Descargar .ics", class = "btn-sm btn-outline-success")
-    ),
-    div(id = "gcal_status_div"),
     # Schedule grid (from AI or manual)
     uiOutput("schedule_grid"),
     div(class = "d-flex justify-content-between align-items-center mb-2",
@@ -332,8 +329,8 @@ ui <- page_navbar(
     layout_columns(
       col_widths = breakpoints(sm = c(12, 12), lg = c(5, 7)),
       div(
-        fileInput("syllabus_file", "Subir sílabo (PDF, Word, TXT):",
-                  accept = c(".pdf", ".docx", ".txt"), width = "100%"),
+        fileInput("syllabus_file", "Subir sílabos (PDF, Word, TXT — múltiples):",
+                  accept = c(".pdf", ".docx", ".txt"), multiple = TRUE, width = "100%"),
         div(class = "d-flex gap-2 flex-wrap",
           actionButton("syllabus_extract_btn", "🤖 Extraer Curso con IA", class = "btn-sm btn-primary"),
           actionButton("syllabus_upload_btn", "📄 Solo Subir", class = "btn-sm btn-outline-secondary"),
@@ -358,6 +355,15 @@ ui <- page_navbar(
   ),
 
   nav_spacer(),
+
+  # PWA Install button (hidden until beforeinstallprompt fires)
+  nav_item(
+    actionButton("btn_install_app", label = tags$span(
+      tags$i(class = "bi bi-download", style = "margin-right:4px"),
+      "Instalar App"
+    ), class = "btn-sm",
+    style = "display:none;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;border:none;font-size:0.78rem;font-weight:600;border-radius:8px;padding:4px 12px;")
+  ),
 
   # Logout button in navbar
   nav_item(
@@ -404,28 +410,86 @@ ui <- page_navbar(
 app_ui <- ui
 ui <- fluidPage(
   useShinyjs(),
+  # Offline banner (controlled by pomodoro.js network detection)
+  tags$div(id = "offline-banner",
+    tags$span("⚠️"), tags$span("Modo Offline — Los botones de IA y sincronización están desactivados.")
+  ),
   # PWA meta tags for installability
   tags$head(
     tags$link(rel = "manifest", href = "pwa-manifest.json"),
     tags$meta(name = "theme-color", content = "#1e293b"),
+    tags$meta(name = "viewport", content = "width=device-width, initial-scale=1, viewport-fit=cover"),
     tags$meta(name = "mobile-web-app-capable", content = "yes"),
     tags$meta(name = "apple-mobile-web-app-capable", content = "yes"),
     tags$meta(name = "apple-mobile-web-app-status-bar-style", content = "black-translucent"),
     tags$meta(name = "apple-mobile-web-app-title", content = "StudyPilot"),
     tags$link(rel = "apple-touch-icon", href = "icon-512.svg"),
     tags$link(rel = "icon", type = "image/svg+xml", href = "icon-512.svg"),
-    # Keepalive heartbeat + auto-reconnect (all devices)
+    # Inline auto-login + message handlers (NOT in external JS — immune to SW cache)
     tags$script(HTML("
-      // Ping every 50 seconds to prevent idle timeout
+      var _spReady = false;
+      $(document).on('shiny:connected', function() {
+        // Register handlers ONCE (Shiny exists now)
+        if (!_spReady) {
+          _spReady = true;
+          Shiny.addCustomMessageHandler('save_session', function(d) {
+            try {
+              localStorage.setItem('sp_user', d.user);
+              localStorage.setItem('sp_token', d.token);
+              console.log('[SP] Session SAVED:', d.user);
+            } catch(e) { console.error('[SP] save err:', e); }
+          });
+          Shiny.addCustomMessageHandler('clear_session', function(d) {
+            localStorage.removeItem('sp_user');
+            localStorage.removeItem('sp_token');
+            localStorage.removeItem('sp_active_tab');
+            console.log('[SP] Session CLEARED');
+          });
+          Shiny.addCustomMessageHandler('tab_changed', function(d) {
+            try { localStorage.setItem('sp_active_tab', d.tab); } catch(e) {}
+          });
+          Shiny.addCustomMessageHandler('cache_calendar', function(d) {
+            try {
+              localStorage.setItem('sp_calendar_events', JSON.stringify(d.events));
+              localStorage.setItem('sp_calendar_ts', new Date().toISOString());
+            } catch(e) {}
+          });
+          Shiny.addCustomMessageHandler('execute_logout', function(d) {
+            localStorage.removeItem('sp_user');
+            localStorage.removeItem('sp_token');
+            localStorage.removeItem('sp_active_tab');
+            localStorage.removeItem('sp_calendar_events');
+            localStorage.removeItem('sp_calendar_ts');
+            console.log('[SP] LOGOUT: localStorage cleared, reloading...');
+            window.location.reload(true);
+          });
+          console.log('[SP] Handlers registered (inline)');
+        }
+        // Auto-login from localStorage (with delay to avoid race condition)
+        var u = localStorage.getItem('sp_user');
+        var t = localStorage.getItem('sp_token');
+        var tab = localStorage.getItem('sp_active_tab');
+        if (u && t) {
+          // Hide login form immediately to prevent flicker
+          $('#login_form_container').hide();
+          // Delay to ensure R observers are ready
+          setTimeout(function() {
+            console.log('[SP] Sending auto_login for:', u);
+            Shiny.setInputValue('auto_login', {user:u, token:t, tab:tab||''}, {priority:'event'});
+          }, 500);
+        } else {
+          // No saved session — force show login form
+          var fc = document.getElementById('login_form_container');
+          if (fc) { fc.style.display = 'block'; fc.style.opacity = '1'; }
+          console.log('[SP] No saved session, showing login form');
+        }
+      });
+      // Keepalive heartbeat
       setInterval(function() {
         if (window.Shiny && Shiny.shinyapp && Shiny.shinyapp.$socket) {
           Shiny.setInputValue('keepalive', Date.now());
         }
       }, 50000);
-      // Auto-reload on disconnect (instead of showing gray screen)
-      $(document).on('shiny:disconnected', function() {
-        setTimeout(function() { location.reload(); }, 3000);
-      });
     "))
   ),
   tags$head(
@@ -460,26 +524,28 @@ ui <- fluidPage(
   # ---- Auth overlay ----
   div(id = "auth_overlay",
     div(class = "auth-card",
-      # Login form
+      # Login form — hidden by default (shown by JS if no saved session)
       div(id = "login_panel",
         tags$div(style = "text-align:center",
           tags$h2("🚀 StudyPilot"),
           tags$p(class = "subtitle", "Plataforma de estudio inteligente")
         ),
-        tags$h5(class = "fw-bold mb-3", "Iniciar sesión"),
-        div(class = "mb-3",
-          tags$label(class = "form-label", "Usuario:"),
-          textInput("login_user", NULL, placeholder = "Tu usuario", width = "100%")
-        ),
-        div(class = "mb-3",
-          tags$label(class = "form-label", "Contraseña:"),
-          passwordInput("login_pass", NULL, width = "100%")
-        ),
-        actionButton("login_btn", "Iniciar sesión", class = "btn btn-primary mt-1"),
-        div(id = "login_msg_div"),
-        tags$div(class = "text-center mt-3",
-          tags$p(class = "small text-muted mb-0", "¿No tienes cuenta?"),
-          tags$span(class = "auth-toggle", onclick = "toggleAuthPanel('register')", "Crear cuenta")
+        div(id = "login_form_container", style = "display:none;",
+          tags$h5(class = "fw-bold mb-3", "Iniciar sesión"),
+          div(class = "mb-3",
+            tags$label(class = "form-label", "Usuario:"),
+            textInput("login_user", NULL, placeholder = "Tu usuario", width = "100%")
+          ),
+          div(class = "mb-3",
+            tags$label(class = "form-label", "Contraseña:"),
+            passwordInput("login_pass", NULL, width = "100%")
+          ),
+          actionButton("login_btn", "Iniciar sesión", class = "btn btn-primary mt-1"),
+          div(id = "login_msg_div"),
+          tags$div(class = "text-center mt-3",
+            tags$p(class = "small text-muted mb-0", "¿No tienes cuenta?"),
+            tags$span(class = "auth-toggle", onclick = "toggleAuthPanel('register')", "Crear cuenta")
+          )
         )
       ),
 
@@ -526,6 +592,7 @@ ui <- fluidPage(
       } else {
         document.getElementById('register_panel').style.display = 'none';
         document.getElementById('login_panel').style.display = 'block';
+        document.getElementById('login_form_container').style.display = 'block';
       }
     }
 
@@ -704,11 +771,71 @@ server <- function(input, output, session) {
     shinyjs::enable("register_btn")
   })
 
+  # ---- AUTO-LOGIN from localStorage ----
+  observeEvent(input$auto_login, {
+    req(is.null(auth_user()))
+    al <- input$auto_login
+    if (is.null(al) || is.null(al$user) || nchar(al$user) == 0) {
+      shinyjs::runjs("$('#login_form_container').fadeIn(200);")
+      return()
+    }
+
+    expected_token <- digest::digest(paste0(al$user, "_studypilot_session"), algo = "md5")
+    if (!identical(al$token, expected_token)) {
+      message("[StudyPilot] Auto-login: invalid token for ", al$user)
+      session$sendCustomMessage("clear_session", list())
+      shinyjs::runjs("$('#login_form_container').fadeIn(200);")
+      return()
+    }
+
+    # Verify user exists in DB
+    login_ok <- FALSE
+    tryCatch({
+      ensure_init()
+      u <- mongolite::mongo(collection = "users", url = MONGO_URI)
+      db_users <- u$find(paste0('{"user":"', al$user, '"}'))
+      u$disconnect()
+      if (nrow(db_users) > 0) {
+        auth_user(list(user = al$user, name = db_users$name[1]))
+        login_ok <- TRUE
+      } else {
+        match <- hardcoded_users[hardcoded_users$user == al$user, ]
+        if (nrow(match) > 0) {
+          auth_user(list(user = al$user, name = match$name[1]))
+          login_ok <- TRUE
+        }
+      }
+    }, error = function(e) {
+      message("[StudyPilot] Auto-login error: ", e$message)
+    })
+
+    if (login_ok) {
+      message("[StudyPilot] Auto-login SUCCESS: ", al$user)
+      # Force UI change immediately
+      shinyjs::hide("auth_overlay", anim = TRUE, animType = "fade")
+      shinyjs::show("main_app", anim = TRUE, animType = "fade")
+      # Restore tab
+      if (!is.null(al$tab) && nchar(al$tab) > 0) {
+        session$onFlushed(function() {
+          bslib::nav_select("main_nav", selected = al$tab)
+        }, once = TRUE)
+      }
+    } else {
+      session$sendCustomMessage("clear_session", list())
+      shinyjs::runjs("$('#login_form_container').fadeIn(200);")
+    }
+  }, ignoreInit = TRUE)
+
   # Show main app after login (runs ONCE)
   observeEvent(auth_user(), {
     req(auth_user())
     shinyjs::hide("auth_overlay", anim = TRUE, animType = "fade")
     shinyjs::show("main_app", anim = TRUE, animType = "fade")
+
+    # Save session to localStorage for auto-login on reload
+    token <- digest::digest(paste0(uid(), "_studypilot_session"), algo = "md5")
+    session$sendCustomMessage("save_session", list(user = uid(), token = token))
+
     ensure_init()
     # Populate global courses from MongoDB so all UI elements have data
     db_courses <- tryCatch(mg_custom_courses_get(uid()), error = function(e) {
@@ -739,17 +866,26 @@ server <- function(input, output, session) {
         message("[StudyPilot] Loaded topics for ", length(topics_list), " courses")
       }
     }, error = function(e) message("[StudyPilot] Topics load error: ", e$message))
+    # Fase 1: Auto-cargar horario base del PDF desde MongoDB
+    tryCatch({
+      sched_base <- mg_schedule_get(uid())
+      if (nrow(sched_base) > 0) {
+        message("[StudyPilot] Auto-loaded PDF schedule: ", nrow(sched_base), " blocks")
+      }
+    }, error = function(e) message("[StudyPilot] Schedule auto-load error: ", e$message))
+
     rv$refresh <- isolate(rv$refresh) + 1
   })
 
   # Logout handler
   observeEvent(input$logout_btn, {
     auth_user(NULL)
-    shinyjs::show("auth_overlay")
-    shinyjs::hide("main_app")
-    updateTextInput(session, "login_user", value = "")
-    updateTextInput(session, "login_pass", value = "")
-    shinyjs::html("login_msg_div", "")
+    rv_gcal$events <- NULL
+    rv_gcal$ai_blocks <- NULL
+    rv_gcal$overrides <- NULL
+    rv_gcal$hidden_events <- NULL
+    # JS clears localStorage and reloads (clean slate)
+    session$sendCustomMessage("execute_logout", list())
   })
 
   # ---- Reactive: all activities ----
@@ -766,6 +902,20 @@ server <- function(input, output, session) {
     if (is.null(u)) return("")
     u$user
   }
+
+  # Track active tab for session restore
+  observeEvent(input$main_nav, {
+    session$sendCustomMessage("tab_changed", list(tab = input$main_nav))
+  })
+
+  # Offline detection — JS sends navigator.onLine state
+  observeEvent(input$app_online, {
+    is_online <- isTRUE(input$app_online)
+    if (!is_online) {
+      showNotification("📡 Sin conexión — Modo Offline activo. Los datos locales siguen disponibles.",
+                       type = "warning", duration = 5)
+    }
+  })
 
   acts <- reactive({
     rv$refresh
@@ -1610,83 +1760,74 @@ server <- function(input, output, session) {
 
   # ---- SCHEDULE ----
   # Visual Calendar with multi-hour event blocks
-  HOUR_H <- 48  # pixels per hour
+  HOUR_H <- 50  # pixels per hour — MUST match CSS .cal-hour-label/.cal-hour-line height
   CAL_FIRST_HOUR <- 0
   CAL_LAST_HOUR <- 23
   CAL_SCROLL_TO <- 7  # auto-scroll to 7am on load
 
   output$visual_calendar <- renderUI({
-    rv$refresh
-    gcal_events <- rv_gcal$events
-    ai_blocks <- rv_gcal$ai_blocks
+    # Fase 4: Programación defensiva — tryCatch + req
+    tryCatch({
+      rv$refresh
+      gcal_events <- horario_maestro()
 
-    # Merge AI study blocks into gcal events
-    if (!is.null(ai_blocks) && nrow(ai_blocks) > 0) {
-      if (is.null(gcal_events) || nrow(gcal_events) == 0 || "error" %in% names(gcal_events)) {
-        gcal_events <- ai_blocks
-      } else {
-        # Add missing columns to both
-        if (!"is_ai" %in% names(gcal_events)) gcal_events$is_ai <- FALSE
-        if (!"color" %in% names(ai_blocks)) ai_blocks$color <- "purple"
-        common_cols <- intersect(names(gcal_events), names(ai_blocks))
-        gcal_events <- rbind(gcal_events[, common_cols], ai_blocks[, common_cols])
+      # req: no renderizar si los datos son nulos o vacíos
+      if (is.null(gcal_events) || !is.data.frame(gcal_events) || nrow(gcal_events) == 0) {
+        return(tags$div(class = "text-center text-muted py-4",
+          tags$p("📅 No hay eventos en el calendario."),
+          tags$p(class = "small", "Sube tu horario con IA, sincroniza Google Calendar, o usa ✨ Autocompletar.")
+        ))
       }
-    }
 
-    # If still no events, show placeholder
-    if (is.null(gcal_events) || nrow(gcal_events) == 0) {
-      return(tags$div(class = "text-center text-muted py-4",
-        tags$p("📅 No hay eventos en el calendario."),
-        tags$p(class = "small", "Sincroniza con Google Calendar, sube tu horario con IA, o usa ✨ Autocompletar.")
-      ))
-    }
-    cw <- rv$cal_week
-    week_start <- SEMESTER_START + (cw - 1) * 7
-    today <- Sys.Date()
-    day_names <- c("DOM","LUN","MAR","MIÉ","JUE","VIE","SÁB")
-    first_hour <- CAL_FIRST_HOUR; last_hour <- CAL_LAST_HOUR
-    total_hours <- last_hour - first_hour
+      cw <- rv$cal_week
+      week_start <- SEMESTER_START + (cw - 1) * 7
+      today <- Sys.Date()
+      day_names <- c("DOM","LUN","MAR","MIÉ","JUE","VIE","SÁB")
+      first_hour <- CAL_FIRST_HOUR; last_hour <- CAL_LAST_HOUR
+      total_hours <- last_hour - first_hour
 
-    # Headers
-    headers <- list(tags$div(class = "cal-header cal-header-time", ""))
-    for (d in 0:6) {
-      dd <- week_start + d - 1
-      headers <- c(headers, list(tags$div(
-        class = paste("cal-header", if(dd == today) "today" else ""),
-        tags$div(class = "cal-day-name", day_names[d + 1]),
-        tags$div(class = "cal-day-num", format(dd, "%d"))
-      )))
-    }
+      # Headers
+      headers <- list(tags$div(class = "cal-header cal-header-time", ""))
+      for (d in 0:6) {
+        dd <- week_start + d - 1
+        headers <- c(headers, list(tags$div(
+          class = paste("cal-header", if(dd == today) "today" else ""),
+          tags$div(class = "cal-day-name", day_names[d + 1]),
+          tags$div(class = "cal-day-num", format(dd, "%d"))
+        )))
+      }
 
-    # Time labels column
-    time_col <- tags$div(class = "cal-times",
-      lapply(first_hour:last_hour, function(h) {
-        tags$div(class = "cal-hour-label", paste0(sprintf("%02d",h), ":00"))
-      })
-    )
+      # Time labels column
+      time_col <- tags$div(class = "cal-times",
+        lapply(first_hour:last_hour, function(h) {
+          tags$div(class = "cal-hour-label", paste0(sprintf("%02d",h), ":00"))
+        })
+      )
 
-    # Day columns with absolute-positioned events
-    day_cols <- lapply(0:6, function(d) {
-      dd <- week_start + d - 1
-      # Hour grid lines
-      hour_lines <- lapply(first_hour:last_hour, function(h) tags$div(class = "cal-hour-line"))
+      # Day columns with absolute-positioned events
+      day_cols <- lapply(0:6, function(d) {
+        dd <- week_start + d - 1
+        hour_lines <- lapply(first_hour:last_hour, function(h) tags$div(class = "cal-hour-line"))
+        event_divs <- list()
 
-      event_divs <- list()
+        # Filter timed events for this day (defensively)
+        day_evts <- tryCatch({
+          idx <- which(
+            !is.na(gcal_events$start) &
+            nchar(gcal_events$start) > 10 &
+            as.Date(substr(gcal_events$start, 1, 10)) == dd
+          )
+          if (length(idx) > 0) gcal_events[idx, ] else NULL
+        }, error = function(e) NULL)
 
-      # Google Calendar events (timed only — all-day rendered separately above)
-      if (!is.null(gcal_events) && nrow(gcal_events) > 0 && !"error" %in% names(gcal_events)) {
-        day_evts <- gcal_events[as.Date(substr(gcal_events$start,1,10)) == dd & nchar(gcal_events$start) > 10, ]
-        if (nrow(day_evts) > 0) {
-          # Parse all event times first (for overlap detection)
+        if (!is.null(day_evts) && nrow(day_evts) > 0) {
+          # Parse all event times (for overlap detection)
           ev_times <- lapply(seq_len(nrow(day_evts)), function(k) {
-            ev <- day_evts[k, ]
-            # Parse hours from ISO string (already in local time after timezone fix)
-            start_str <- substr(ev$start, 1, 16)
-            end_str <- substr(ev$end, 1, 16)
+            start_str <- substr(day_evts$start[k], 1, 16)
+            end_str <- substr(day_evts$end[k], 1, 16)
             sh <- suppressWarnings(as.numeric(substr(start_str,12,13)) + as.numeric(substr(start_str,15,16))/60)
             eh <- suppressWarnings(as.numeric(substr(end_str,12,13)) + as.numeric(substr(end_str,15,16))/60)
-            # All-day events: skip here, rendered separately as banners
-            if (is.na(sh) || is.na(eh)) { next }
+            if (is.na(sh) || is.na(eh)) return(list(sh = NA, eh = NA))
             if (eh <= sh) eh <- sh + 1
             list(sh = sh, eh = eh)
           })
@@ -1695,79 +1836,90 @@ server <- function(input, output, session) {
             ev <- day_evts[k, ]
             sh <- ev_times[[k]]$sh
             eh <- ev_times[[k]]$eh
+            if (is.na(sh) || is.na(eh)) next
+
             top_px <- (sh - first_hour) * HOUR_H
             height_px <- max((eh - sh) * HOUR_H - 2, 20)
-            time_label <- paste0(substr(ev$start,12,16), " – ", substr(ev$end,12,16))
+            start_str <- substr(ev$start, 1, 16)
+            end_str <- substr(ev$end, 1, 16)
+            time_label <- paste0(substr(start_str,12,16), " – ", substr(end_str,12,16))
 
-            # Detect overlaps: count events that overlap with this one
-            n_overlaps <- sum(sapply(ev_times, function(o) o$sh < eh && o$eh > sh))
-            # Find this event's index among overlapping events
-            overlap_idx <- sum(sapply(seq_len(k), function(j) ev_times[[j]]$sh < eh && ev_times[[j]]$eh > sh))
+            # Overlap detection
+            valid_times <- Filter(function(o) !is.na(o$sh), ev_times)
+            n_overlaps <- sum(sapply(valid_times, function(o) o$sh < eh && o$eh > sh))
+            overlap_idx <- sum(sapply(seq_len(k), function(j) {
+              !is.na(ev_times[[j]]$sh) && ev_times[[j]]$sh < eh && ev_times[[j]]$eh > sh
+            }))
             evt_width <- if (n_overlaps > 1) paste0(floor(90 / n_overlaps), "%") else "92%"
             evt_left <- if (n_overlaps > 1) paste0(floor((overlap_idx - 1) * 90 / n_overlaps) + 2, "%") else "4%"
 
-            # Color: use explicit color field (AI blocks) or detect by name
-            clr <- if ("color" %in% names(ev) && !is.null(ev$color) && nchar(ev$color) > 0) ev$color
-            else {
-              name_lower <- tolower(ev$summary)
-              if (grepl("pco|planifica", name_lower)) "cyan"
-              else if (grepl("dise", name_lower)) "green"
-              else if (grepl("data|analy", name_lower)) "blue"
-              else if (grepl("gesti", name_lower)) "orange"
-              else if (grepl("estrat", name_lower)) "pink"
-              else if (grepl("etica|\u00e9tica", name_lower)) "yellow"
-              else if (grepl("comer|almuerz|comida|lunch|cena|desayun", name_lower)) "gray"
-              else if (grepl("examen|quiz|pc[0-9]|parcial|final|evaluaci|E[PF][0-9]", ev$summary, ignore.case = TRUE)) "red"
-              else "blue"
-            }
+            # Color: ya viene asignado por aplicar_colores_cursos() en horario_maestro
+            clr <- if (!is.null(ev$color) && !is.na(ev$color) && nchar(ev$color) > 0) ev$color else "#3b82f6"
+            # Convertir nombres CSS a HEX si viene como nombre
+            clr_hex_map <- c(blue="#3b82f6", green="#22c55e", cyan="#06b6d4", orange="#f97316",
+                            pink="#ec4899", red="#ef4444", yellow="#eab308", gray="#94a3b8",
+                            purple="#8b5cf6", teal="#14b8a6", indigo="#6366f1")
+            if (tolower(clr) %in% names(clr_hex_map)) clr <- clr_hex_map[tolower(clr)]
 
-            # Determine if AI-generated event
-            is_ai <- !is.null(ev$is_ai) && isTRUE(ev$is_ai)
-            ai_class <- if (is_ai) " cal-ev-ai" else " cal-ev-locked"
+            is_ai <- isTRUE(ev$is_ai)
+            ai_class <- if (is_ai) " cal-ev-ai" else ""
+            ev_location <- if (!is.null(ev$location) && !is.na(ev$location)) ev$location else ""
+            is_gcal <- isTRUE(!is.null(ev$source) && ev$source == "gcal")
+
+            # CRUD: TODOS los eventos son clickeables; GCal queda isReadOnly en el modal
+            ev_onclick <- paste0(
+              "Shiny.setInputValue('cal_event_click',{title:'",
+              gsub("'", "\\\\'", ev$summary), "',start:'", start_str, "',end:'", end_str,
+              "',color:'", clr, "',is_ai:", if (is_ai) "true" else "false",
+              ",is_gcal:", if (is_gcal) "true" else "false",
+              ",source:'", if (!is.null(ev$source)) ev$source else "unknown",
+              "',idx:", k, "},{priority:'event'})"
+            )
+
+            # Estilo: backgroundColor inline con HEX, borderColor más oscuro
+            bg_style <- paste0(
+              "top:", top_px, "px;height:", height_px, "px;width:", evt_width, ";left:", evt_left, ";",
+              "background-color:", clr, ";border-left:3px solid ", clr, ";",
+              "cursor:pointer;", if (is_ai) "opacity:0.92;" else ""
+            )
 
             event_divs <- c(event_divs, list(
-              tags$div(class = paste0("cal-event cal-ev-", clr, ai_class),
-                style = paste0("top:", top_px, "px; height:", height_px, "px; width:", evt_width, "; left:", evt_left, ";",
-                  if (is_ai) "cursor:pointer;opacity:0.92;" else ""),
-                onclick = if (is_ai) paste0("Shiny.setInputValue('cal_event_click',{title:'",
-                  gsub("'", "\\\\'", ev$summary), "',start:'", start_str, "',end:'", end_str,
-                  "',idx:", k, "},{priority:'event'})") else "",
+              tags$div(class = paste0("cal-event", ai_class),
+                style = bg_style,
+                onclick = ev_onclick,
                 tags$div(class = "cal-ev-name", ev$summary),
                 tags$div(class = "cal-ev-time", time_label),
-                if (nchar(ev$location) > 0) tags$div(class = "cal-ev-room", ev$location)
+                if (nchar(ev_location) > 0) tags$div(class = "cal-ev-room", ev_location)
               )
             ))
           }
         }
-      }
 
-      tags$div(class = "cal-day-col",
-        style = paste0("height:", total_hours * HOUR_H, "px;"),
-        hour_lines, event_divs
-      )
-    })
+        tags$div(class = "cal-day-col",
+          style = paste0("height:", total_hours * HOUR_H, "px;"),
+          hour_lines, event_divs
+        )
+      })
 
-    # Collect all-day events and render as spanning banners
-    has_allday <- FALSE
-    allday_spans <- list()
-    week_sun <- week_start - 1  # Sunday
-    week_sat <- week_start + 5  # Saturday
-    if (!is.null(gcal_events) && nrow(gcal_events) > 0 && !"error" %in% names(gcal_events)) {
-      allday_evts <- gcal_events[nchar(gcal_events$start) <= 10, ]
-      if (nrow(allday_evts) > 0) {
-        # Deduplicate by start date (not by summary — allows same label in different semesters)
+      # All-day events
+      has_allday <- FALSE
+      allday_spans <- list()
+      week_sun <- week_start - 1
+      week_sat <- week_start + 5
+
+      allday_idx <- which(!is.na(gcal_events$start) & nchar(gcal_events$start) <= 10)
+      if (length(allday_idx) > 0) {
+        allday_evts <- gcal_events[allday_idx, ]
         allday_evts <- allday_evts[!duplicated(paste0(allday_evts$summary, "|", allday_evts$start)), ]
         for (j in seq_len(nrow(allday_evts))) {
-          ev_start <- as.Date(substr(allday_evts$start[j], 1, 10))
-          ev_end <- as.Date(substr(allday_evts$end[j], 1, 10))
+          ev_start <- tryCatch(as.Date(substr(allday_evts$start[j], 1, 10)), error = function(e) NA)
+          ev_end <- tryCatch(as.Date(substr(allday_evts$end[j], 1, 10)), error = function(e) NA)
           if (is.na(ev_start) || is.na(ev_end)) next
-          # Clip to visible week
           vis_start <- max(ev_start, week_sun)
-          vis_end <- min(ev_end - 1, week_sat)  # end is exclusive in ICS
+          vis_end <- min(ev_end - 1, week_sat)
           if (vis_start > week_sat || vis_end < week_sun) next
-          # Grid columns: 2=Sun, 3=Mon, ..., 8=Sat
           col_start <- as.integer(vis_start - week_sun) + 2
-          col_end <- as.integer(vis_end - week_sun) + 3  # +1 because grid-column end is exclusive
+          col_end <- as.integer(vis_end - week_sun) + 3
           has_allday <- TRUE
           allday_spans <- c(allday_spans, list(
             tags$div(style = paste0(
@@ -1779,30 +1931,32 @@ server <- function(input, output, session) {
           ))
         }
       }
-    }
 
-    tags$div(
-      # Headers row (fixed)
-      tags$div(class = "cal-wrapper cal-header-row", headers),
-      # All-day events row (if any) — spanning banners
-      if (has_allday) tags$div(class = "cal-allday-grid",
-        style = "display:grid;grid-template-columns:55px repeat(7,1fr);border:1px solid #e2e8f0;border-top:none;border-bottom:none;background:#fffbeb;padding:3px 0;gap:2px 0;",
-        tags$div(),  # spacer for time column
-        allday_spans),
-      # Scrollable body with time labels + day columns
-      tags$div(class = "cal-scroll-container", id = "cal-scroll-box",
-        style = "max-height:550px; overflow-y:auto; position:relative;",
-        tags$div(class = "cal-wrapper cal-body-row",
-          time_col,
-          day_cols
-        )
-      ),
-      # Auto-scroll to 7am on render
-      tags$script(HTML(paste0(
-        "setTimeout(function(){var c=document.getElementById('cal-scroll-box');",
-        "if(c) c.scrollTop=", CAL_SCROLL_TO * HOUR_H, ";}, 300);"
-      )))
-    )
+      tags$div(
+        tags$div(class = "cal-wrapper cal-header-row", headers),
+        if (has_allday) tags$div(class = "cal-allday-grid",
+          style = "display:grid;grid-template-columns:55px repeat(7,1fr);border:1px solid #e2e8f0;border-top:none;border-bottom:none;background:#fffbeb;padding:3px 0;gap:2px 0;",
+          tags$div(),
+          allday_spans),
+        tags$div(class = "cal-scroll-container", id = "cal-scroll-box",
+          style = "max-height:550px; overflow-y:auto; position:relative;",
+          tags$div(class = "cal-wrapper cal-body-row",
+            time_col,
+            day_cols
+          )
+        ),
+        tags$script(HTML(paste0(
+          "setTimeout(function(){var c=document.getElementById('cal-scroll-box');",
+          "if(c) c.scrollTop=", CAL_SCROLL_TO * HOUR_H, ";}, 300);"
+        )))
+      )
+    }, error = function(e) {
+      message("[StudyPilot] visual_calendar render error: ", e$message)
+      tags$div(class = "alert alert-danger m-3",
+        tags$b("⚠️ Error al renderizar el calendario"),
+        tags$p(class = "small mb-0", "Intenta recargar la página. Detalle: ", e$message)
+      )
+    })
   })
 
   # ---- COURSES ----
@@ -1900,147 +2054,213 @@ server <- function(input, output, session) {
     else ""
   }
 
+  # Helper: save one extracted course to MongoDB (reused by single + batch)
+  guardar_curso_extraido <- function(user_id, d, syllabus_text = NULL) {
+    ensure_init()
+    cid <- if (!is.null(d$codigo) && nchar(d$codigo) > 0) d$codigo else paste0("C", format(Sys.time(), "%H%M%S"))
+    existing <- mg_custom_courses_get(user_id)
+    if (nrow(existing) > 0 && cid %in% existing$id) {
+      mg_custom_course_delete(user_id, cid)
+    }
+    cname <- if (!is.null(d$nombre_curso)) d$nombre_curso else "Curso sin nombre"
+    short <- substr(gsub("[^A-Za-z0-9 ]", "", cname), 1, 12)
+    credits <- if (!is.null(d$creditos)) as.integer(d$creditos) else 3L
+    prof <- if (!is.null(d$profesor)) d$profesor else ""
+    formula <- if (!is.null(d$formula)) d$formula else ""
+    colors <- c("#2563eb", "#16a34a", "#7c3aed", "#ea580c", "#db2777", "#0891b2", "#d97706", "#059669")
+    clr <- sample(colors, 1)
+
+    mg_custom_course_add(user_id, cid, cname, short, credits, prof, formula, 5L, clr)
+
+    evals <- d$evaluaciones
+    n_evals <- 0
+    if (!is.null(evals) && is.data.frame(evals) && nrow(evals) > 0) {
+      for (i in seq_len(nrow(evals))) {
+        ev_weight <- suppressWarnings(as.numeric(evals$peso[i]))
+        ev_week <- suppressWarnings(as.integer(evals$semana[i]))
+        ev_type <- if (!is.null(evals$tipo[i])) evals$tipo[i] else "ec"
+        ev_date <- if (!is.na(ev_week)) as.character(week_to_date(ev_week, 5L)) else as.character(Sys.Date())
+        if (is.na(ev_weight)) ev_weight <- 0
+        mg_activity_add(user_id, cid, ev_type, evals$nombre[i], ev_date, ev_weight, paste0("Semana ", ev_week))
+      }
+      n_evals <- nrow(evals)
+    }
+
+    if (!is.null(syllabus_text) && nchar(syllabus_text) > 0) {
+      mg_syllabus_add(user_id, cid, paste0("Sílabo_", short, ".pdf"), syllabus_text)
+    }
+
+    if (!is.null(d$temas) && length(d$temas) > 0) {
+      topics_text <- paste0("Temas del curso ", cname, ":\n", paste(seq_along(d$temas), d$temas, sep = ". ", collapse = "\n"))
+      mg_note_add(user_id, cid, topics_text, "Temas extraídos del sílabo")
+      ct <- get0("course_topics", envir = globalenv())
+      if (is.null(ct)) ct <- list()
+      ct[[cid]] <- d$temas
+      assign("course_topics", ct, envir = globalenv())
+    }
+
+    list(cid = cid, cname = cname, n_evals = n_evals)
+  }
+
   observeEvent(input$syllabus_extract_btn, {
     req(input$syllabus_file)
-    f <- input$syllabus_file
-    ext <- tolower(tools::file_ext(f$name))
+    files <- input$syllabus_file  # dataframe: name, size, type, datapath
+    n_files <- nrow(files)
 
     shinyjs::disable("syllabus_extract_btn")
-    shinyjs::html("syllabus_status_div",
-      '<div class="alert alert-info py-2 small"><span class="spinner-border spinner-border-sm me-2"></span><b>Extrayendo curso con IA...</b> Esto puede tomar 15-30 segundos.</div>')
+    current_uid <- uid()
 
-    # Read file
-    text <- tryCatch(read_syllabus_file(f$datapath, ext), error = function(e) "")
-    if (nchar(text) < 50) {
-      shinyjs::html("syllabus_status_div", '<div class="alert alert-danger py-2 small">No se pudo leer el archivo o está vacío.</div>')
-      shinyjs::enable("syllabus_extract_btn")
-      return()
-    }
-    rv_extract$text <- text
+    # ---- SINGLE FILE: preview + confirm workflow ----
+    if (n_files == 1) {
+      f <- files[1, ]
+      ext <- tolower(tools::file_ext(f$name))
+      shinyjs::html("syllabus_status_div",
+        '<div class="alert alert-info py-2 small"><span class="spinner-border spinner-border-sm me-2"></span><b>Extrayendo curso con IA...</b> 15-30 seg.</div>')
 
-    session$onFlushed(function() {
-      tryCatch({
-        result <- ai_extract_syllabus(text)
-        if (!is.null(result$error)) {
-          shinyjs::html("syllabus_status_div", paste0('<div class="alert alert-danger py-2 small">', result$error, '</div>'))
-          shinyjs::enable("syllabus_extract_btn")
-          return()
-        }
-        rv_extract$data <- result
-        shinyjs::html("syllabus_status_div",
-          '<div class="alert alert-success py-2 small">✅ Curso extraído. Revisa el preview y confirma para guardar.</div>')
+      text <- tryCatch(read_syllabus_file(f$datapath, ext), error = function(e) "")
+      if (nchar(text) < 50) {
+        shinyjs::html("syllabus_status_div", '<div class="alert alert-danger py-2 small">No se pudo leer el archivo o está vacío.</div>')
+        shinyjs::enable("syllabus_extract_btn")
+        return()
+      }
+      rv_extract$text <- text
 
-        # Render preview
-        evals <- result$evaluaciones
-        eval_rows <- ""
-        if (!is.null(evals) && (is.data.frame(evals) || is.list(evals))) {
-          if (is.data.frame(evals)) {
+      session$onFlushed(function() {
+        tryCatch({
+          result <- ai_extract_syllabus(text)
+          if (!is.null(result$error)) {
+            shinyjs::html("syllabus_status_div", paste0('<div class="alert alert-danger py-2 small">', result$error, '</div>'))
+            shinyjs::enable("syllabus_extract_btn")
+            return()
+          }
+          rv_extract$data <- result
+          shinyjs::html("syllabus_status_div",
+            '<div class="alert alert-success py-2 small">✅ Curso extraído. Revisa el preview y confirma.</div>')
+
+          evals <- result$evaluaciones
+          eval_rows <- ""
+          if (!is.null(evals) && is.data.frame(evals)) {
             for (i in seq_len(nrow(evals))) {
               eval_rows <- paste0(eval_rows, '<tr><td>', evals$nombre[i], '</td><td>', evals$codigo[i],
                 '</td><td>', evals$peso[i], '%</td><td>S', evals$semana[i], '</td><td>', evals$tipo[i], '</td></tr>')
             }
           }
-        }
-        temas_html <- ""
-        if (!is.null(result$temas)) {
-          temas_html <- paste0('<li>', result$temas, '</li>', collapse = "")
-          temas_html <- paste0('<ul class="small mb-0">', temas_html, '</ul>')
-        }
+          temas_html <- ""
+          if (!is.null(result$temas)) {
+            temas_html <- paste0('<ul class="small mb-0">', paste0('<li>', result$temas, '</li>', collapse = ""), '</ul>')
+          }
+          preview_html <- paste0(
+            '<div class="card shadow-sm"><div class="card-body py-3">',
+            '<h6 class="fw-bold mb-1">', ifelse(is.null(result$nombre_curso), "Curso", result$nombre_curso), '</h6>',
+            '<div class="small text-muted mb-2">',
+              'Código: <b>', ifelse(is.null(result$codigo), "—", result$codigo), '</b> | ',
+              'Créditos: <b>', ifelse(is.null(result$creditos), "—", result$creditos), '</b> | ',
+              'Profesor: <b>', ifelse(is.null(result$profesor), "—", result$profesor), '</b>',
+            '</div>',
+            if (nchar(eval_rows) > 0) paste0(
+              '<b class="small">Evaluaciones:</b>',
+              '<table class="table table-sm table-bordered small mt-1 mb-2"><thead><tr>',
+              '<th>Evaluación</th><th>Código</th><th>Peso</th><th>Semana</th><th>Tipo</th></tr></thead><tbody>',
+              eval_rows, '</tbody></table>') else "",
+            if (nchar(temas_html) > 0) paste0('<b class="small">Temas:</b>', temas_html) else "",
+            '</div></div>')
 
-        preview_html <- paste0(
-          '<div class="card shadow-sm"><div class="card-body py-3">',
-          '<h6 class="fw-bold mb-1">', ifelse(is.null(result$nombre_curso), "Curso", result$nombre_curso), '</h6>',
-          '<div class="small text-muted mb-2">',
-            'Código: <b>', ifelse(is.null(result$codigo), "—", result$codigo), '</b> | ',
-            'Créditos: <b>', ifelse(is.null(result$creditos), "—", result$creditos), '</b> | ',
-            'Profesor: <b>', ifelse(is.null(result$profesor), "—", result$profesor), '</b>',
-          '</div>',
-          if (nchar(eval_rows) > 0) paste0(
-            '<b class="small">Evaluaciones:</b>',
-            '<table class="table table-sm table-bordered small mt-1 mb-2"><thead><tr>',
-            '<th>Evaluación</th><th>Código</th><th>Peso</th><th>Semana</th><th>Tipo</th></tr></thead><tbody>',
-            eval_rows, '</tbody></table>'
-          ) else "",
-          if (nchar(temas_html) > 0) paste0('<b class="small">Temas:</b>', temas_html) else "",
-          '</div></div>'
-        )
+          output$syllabus_preview <- renderUI(HTML(preview_html))
+          shinyjs::show("syllabus_confirm_div")
+          shinyjs::enable("syllabus_confirm")
+          shinyjs::enable("syllabus_cancel")
+        }, error = function(e) {
+          shinyjs::html("syllabus_status_div", paste0('<div class="alert alert-danger py-2 small">Error: ', e$message, '</div>'))
+        })
+        shinyjs::enable("syllabus_extract_btn")
+      }, once = TRUE)
+      return()
+    }
 
-        output$syllabus_preview <- renderUI(HTML(preview_html))
-        shinyjs::show("syllabus_confirm_div")
-        shinyjs::enable("syllabus_confirm")
-        shinyjs::enable("syllabus_cancel")
-      }, error = function(e) {
-        shinyjs::html("syllabus_status_div", paste0('<div class="alert alert-danger py-2 small">Error: ', e$message, '</div>'))
+    # ---- BATCH MODE: multiple files → auto-extract + auto-save with progress ----
+    shinyjs::html("syllabus_status_div",
+      paste0('<div class="alert alert-info py-2 small"><span class="spinner-border spinner-border-sm me-2"></span>',
+             '<b>Procesando ', n_files, ' sílabos en batch...</b> Esto puede tomar ', n_files * 20, '-', n_files * 40, ' seg.</div>'))
+
+    session$onFlushed(function() {
+      ok <- 0; fail <- 0; errors <- character()
+
+      withProgress(message = "Analizando Sílabos", value = 0, {
+        for (fi in seq_len(n_files)) {
+          f <- files[fi, ]
+          fname <- f$name
+          ext <- tolower(tools::file_ext(fname))
+
+          incProgress(1 / n_files, detail = paste0("(", fi, "/", n_files, ") ", fname))
+
+          tryCatch({
+            # Read file
+            text <- read_syllabus_file(f$datapath, ext)
+            if (nchar(text) < 50) {
+              fail <- fail + 1
+              errors <- c(errors, paste0(fname, ": archivo vacío o ilegible"))
+              next
+            }
+
+            # Extract with AI
+            result <- ai_extract_syllabus(text)
+            if (!is.null(result$error)) {
+              fail <- fail + 1
+              errors <- c(errors, paste0(fname, ": ", result$error))
+              next
+            }
+
+            # Auto-save to MongoDB
+            saved <- guardar_curso_extraido(current_uid, result, text)
+            ok <- ok + 1
+            message("[StudyPilot] Batch: saved '", saved$cname, "' (", saved$n_evals, " evals) from ", fname)
+
+          }, error = function(e) {
+            fail <<- fail + 1
+            errors <<- c(errors, paste0(fname, ": ", e$message))
+            message("[StudyPilot] Batch error on ", fname, ": ", e$message)
+            showNotification(paste0("❌ Error en ", fname, ": ", e$message), type = "error", duration = 8)
+          })
+        }
       })
+
+      # Refresh courses after batch
+      tryCatch({
+        db_courses <- mg_custom_courses_get(current_uid)
+        if (nrow(db_courses) > 0) assign("courses", tibble::as_tibble(db_courses), envir = globalenv())
+      }, error = function(e) NULL)
+      rv$refresh <- isolate(rv$refresh) + 1
+
+      # Summary
+      error_html <- if (fail > 0) paste0('<br><small class="text-muted">Errores:<br>',
+        paste0("• ", errors, collapse = "<br>"), '</small>') else ""
+
+      shinyjs::html("syllabus_status_div", paste0(
+        '<div class="alert ', if (fail == 0) 'alert-success' else if (ok > 0) 'alert-warning' else 'alert-danger',
+        ' py-2 small">',
+        if (ok > 0) paste0('✅ <b>', ok, ' curso(s)</b> creados exitosamente. ') else "",
+        if (fail > 0) paste0('❌ <b>', fail, '</b> archivo(s) fallaron. ') else "",
+        error_html, '</div>'))
+
       shinyjs::enable("syllabus_extract_btn")
+      gc()  # Liberar memoria después del batch
     }, once = TRUE)
   })
 
-  # Confirm: save extracted course + evaluations
+  # Confirm: save extracted course (uses shared guardar_curso_extraido helper)
   observeEvent(input$syllabus_confirm, {
-    message("[StudyPilot] Confirm button clicked")
     req(rv_extract$data)
     d <- rv_extract$data
-    message("[StudyPilot] Saving course: ", d$nombre_curso, " (", d$codigo, ")")
+    message("[StudyPilot] Confirm: saving '", d$nombre_curso, "'")
 
-    # Show loading state
     shinyjs::disable("syllabus_confirm")
     shinyjs::disable("syllabus_cancel")
     shinyjs::html("syllabus_status_div",
-      '<div class="alert alert-info py-2 small"><span class="spinner-border spinner-border-sm text-success me-2"></span><b>Guardando curso y evaluaciones...</b></div>')
+      '<div class="alert alert-info py-2 small"><span class="spinner-border spinner-border-sm text-success me-2"></span><b>Guardando...</b></div>')
 
     tryCatch({
-      ensure_init()
-      # Generate a course ID
-      cid <- if (!is.null(d$codigo) && nchar(d$codigo) > 0) d$codigo else paste0("C", format(Sys.time(), "%H%M%S"))
-      # Check for duplicate — if course already exists, delete old data first
-      existing <- mg_custom_courses_get(uid())
-      if (nrow(existing) > 0 && cid %in% existing$id) {
-        mg_custom_course_delete(uid(), cid)
-        message("[StudyPilot] Replaced existing course: ", cid)
-      }
-      cname <- if (!is.null(d$nombre_curso)) d$nombre_curso else "Curso sin nombre"
-      short <- substr(gsub("[^A-Za-z0-9 ]", "", cname), 1, 12)
-      credits <- if (!is.null(d$creditos)) as.integer(d$creditos) else 3L
-      prof <- if (!is.null(d$profesor)) d$profesor else ""
-      formula <- if (!is.null(d$formula)) d$formula else ""
-      colors <- c("#2563eb", "#16a34a", "#7c3aed", "#ea580c", "#db2777", "#0891b2", "#d97706", "#059669")
-      clr <- sample(colors, 1)
+      saved <- guardar_curso_extraido(uid(), d, rv_extract$text)
 
-      # Save course to MongoDB
-      mg_custom_course_add(uid(), cid, cname, short, credits, prof, formula, 5L, clr)
-
-      # Save evaluations as activities
-      evals <- d$evaluaciones
-      if (!is.null(evals) && is.data.frame(evals) && nrow(evals) > 0) {
-        for (i in seq_len(nrow(evals))) {
-          ev_name <- evals$nombre[i]
-          ev_weight <- suppressWarnings(as.numeric(evals$peso[i]))
-          ev_week <- suppressWarnings(as.integer(evals$semana[i]))
-          ev_type <- if (!is.null(evals$tipo[i])) evals$tipo[i] else "ec"
-          ev_date <- if (!is.na(ev_week)) as.character(week_to_date(ev_week, 5L)) else as.character(Sys.Date())
-          if (is.na(ev_weight)) ev_weight <- 0
-          mg_activity_add(uid(), cid, ev_type, ev_name, ev_date, ev_weight, paste0("Semana ", ev_week))
-        }
-      }
-
-      # Save syllabus text
-      if (!is.null(rv_extract$text) && nchar(rv_extract$text) > 0) {
-        mg_syllabus_add(uid(), cid, paste0("Sílabo_", short, ".pdf"), rv_extract$text)
-      }
-
-      # Save topics to study notes
-      if (!is.null(d$temas) && length(d$temas) > 0) {
-        topics_text <- paste0("Temas del curso ", cname, ":\n", paste(seq_along(d$temas), d$temas, sep = ". ", collapse = "\n"))
-        mg_note_add(uid(), cid, topics_text, "Temas extraídos del sílabo")
-        # Update course_topics in memory
-        ct <- get0("course_topics", envir = globalenv())
-        if (is.null(ct)) ct <- list()
-        ct[[cid]] <- d$temas
-        assign("course_topics", ct, envir = globalenv())
-      }
-
-      # Refresh global courses from MongoDB
       db_courses <- tryCatch(mg_custom_courses_get(uid()), error = function(e) data.frame())
       if (nrow(db_courses) > 0) assign("courses", tibble::as_tibble(db_courses), envir = globalenv())
       rv$refresh <- rv$refresh + 1
@@ -2049,11 +2269,10 @@ server <- function(input, output, session) {
       output$syllabus_preview <- renderUI(NULL)
       shinyjs::hide("syllabus_confirm_div")
       shinyjs::html("syllabus_status_div",
-        paste0('<div class="alert alert-success py-2 small">✅ Curso <b>', cname, '</b> creado con ',
-          if (!is.null(evals) && is.data.frame(evals)) nrow(evals) else 0,
-          ' evaluaciones. Ve al Dashboard para ver las actividades.</div>'))
+        paste0('<div class="alert alert-success py-2 small">✅ Curso <b>', saved$cname, '</b> creado con ',
+          saved$n_evals, ' evaluaciones.</div>'))
     }, error = function(e) {
-      shinyjs::html("syllabus_status_div", paste0('<div class="alert alert-danger py-2 small">❌ Error al guardar: ', e$message, '</div>'))
+      shinyjs::html("syllabus_status_div", paste0('<div class="alert alert-danger py-2 small">❌ Error: ', e$message, '</div>'))
       shinyjs::enable("syllabus_confirm")
       shinyjs::enable("syllabus_cancel")
     })
@@ -2161,17 +2380,30 @@ server <- function(input, output, session) {
   })
 
   # ---- Calendar event click-to-edit (AI events only) ----
+  # ---- CRUD: Click-to-edit for ALL events (AI, PDF, GCal) ----
   observeEvent(input$cal_event_click, {
     ev <- input$cal_event_click
     if (is.null(ev)) return()
+    is_ai <- isTRUE(ev$is_ai)
+    is_gcal <- isTRUE(ev$is_gcal)
+    src_label <- if (is_ai) "🤖 Bloque IA" else if (is_gcal) "📅 Google Calendar" else "📋 Horario PDF"
+    cur_color <- if (!is.null(ev$color) && nchar(ev$color) > 0) ev$color else "#3b82f6"
+
+    color_choices <- c("Azul"="#2563eb", "Verde"="#16a34a", "Morado"="#7c3aed", "Naranja"="#ea580c",
+                       "Rosa"="#db2777", "Cyan"="#0891b2", "Rojo"="#dc2626", "Amarillo"="#eab308",
+                       "Teal"="#14b8a6", "Gris"="#94a3b8")
+
     showModal(modalDialog(
       title = paste0("Editar: ", ev$title),
+      tags$span(class = "badge bg-secondary mb-2", src_label),
       textInput("cal_edit_title", "Título:", value = ev$title),
       textInput("cal_edit_start", "Hora inicio (HH:MM):", value = substr(ev$start, 12, 16)),
       textInput("cal_edit_end", "Hora fin (HH:MM):", value = substr(ev$end, 12, 16)),
-      tags$p(class = "text-muted small", "Solo los bloques 🤖 generados por IA son editables."),
+      selectInput("cal_edit_color", "Color:",
+        choices = color_choices, selected = cur_color, width = "200px"),
+      if (is_gcal) tags$p(class = "text-warning small", "⚠️ Los cambios en eventos de Google son locales."),
       footer = tagList(
-        actionButton("cal_edit_delete", "🗑 Eliminar bloque", class = "btn-outline-danger"),
+        actionButton("cal_edit_delete", "🗑 Eliminar", class = "btn-outline-danger"),
         modalButton("Cancelar"),
         actionButton("cal_edit_save", "💾 Guardar", class = "btn-primary")
       ),
@@ -2179,37 +2411,128 @@ server <- function(input, output, session) {
     ))
   })
 
+  # Helper: persist AI blocks to MongoDB
+  save_ai_blocks_mongo <- function() {
+    tryCatch(mg_ai_blocks_set(uid(), rv_gcal$ai_blocks),
+             error = function(e) message("[StudyPilot] AI blocks save error: ", e$message))
+  }
+
   observeEvent(input$cal_edit_save, {
-    ai_blocks <- rv_gcal$ai_blocks
-    if (!is.null(ai_blocks) && nrow(ai_blocks) > 0) {
-      ev <- input$cal_event_click
-      # Find and update the matching block
-      match_idx <- which(ai_blocks$summary == ev$title & substr(ai_blocks$start, 1, 16) == substr(ev$start, 1, 16))
-      if (length(match_idx) > 0) {
-        date_part <- substr(ai_blocks$start[match_idx[1]], 1, 10)
-        ai_blocks$summary[match_idx[1]] <- input$cal_edit_title
-        ai_blocks$start[match_idx[1]] <- paste0(date_part, "T", input$cal_edit_start)
-        ai_blocks$end[match_idx[1]] <- paste0(date_part, "T", input$cal_edit_end)
-        rv_gcal$ai_blocks <- ai_blocks
-        rv$refresh <- rv$refresh + 1
+    ev <- input$cal_event_click
+    if (is.null(ev)) return()
+    is_ai <- isTRUE(ev$is_ai)
+
+    if (is_ai) {
+      # Edit AI block in-memory + persist
+      ai_blocks <- rv_gcal$ai_blocks
+      if (!is.null(ai_blocks) && nrow(ai_blocks) > 0) {
+        match_idx <- which(ai_blocks$summary == ev$title &
+                           substr(ai_blocks$start, 1, 16) == substr(ev$start, 1, 16))
+        if (length(match_idx) > 0) {
+          date_part <- substr(ai_blocks$start[match_idx[1]], 1, 10)
+          ai_blocks$summary[match_idx[1]] <- input$cal_edit_title
+          ai_blocks$start[match_idx[1]] <- paste0(date_part, "T", input$cal_edit_start, ":00")
+          ai_blocks$end[match_idx[1]] <- paste0(date_part, "T", input$cal_edit_end, ":00")
+          ai_blocks$color[match_idx[1]] <- input$cal_edit_color
+          rv_gcal$ai_blocks <- ai_blocks
+          save_ai_blocks_mongo()
+        }
       }
+    } else {
+      # GCal/PDF event: create/update override + persist to MongoDB
+      override <- data.frame(
+        orig_title = ev$title, orig_start = ev$start,
+        new_title = input$cal_edit_title,
+        new_start_time = input$cal_edit_start,
+        new_end_time = input$cal_edit_end,
+        new_color = input$cal_edit_color,
+        stringsAsFactors = FALSE
+      )
+      existing <- rv_gcal$overrides
+      if (is.null(existing) || !is.data.frame(existing) || nrow(existing) == 0) {
+        existing <- override
+      } else {
+        dup <- which(existing$orig_title == override$orig_title &
+                     substr(existing$orig_start, 1, 16) == substr(override$orig_start, 1, 16))
+        if (length(dup) > 0) existing <- existing[-dup, ]
+        existing <- rbind(existing, override)
+      }
+      rv_gcal$overrides <- existing
+      tryCatch(mg_cal_overrides_set(uid(), existing),
+               error = function(e) message("[StudyPilot] Override save error: ", e$message))
     }
+    rv$refresh <- rv$refresh + 1
     removeModal()
-    showNotification("✅ Bloque actualizado", type = "message")
+    showNotification("✅ Evento actualizado", type = "message")
   })
 
   observeEvent(input$cal_edit_delete, {
+    ev <- input$cal_event_click
+    if (is.null(ev)) return()
+    is_ai <- isTRUE(ev$is_ai)
+
+    if (is_ai) {
+      ai_blocks <- rv_gcal$ai_blocks
+      if (!is.null(ai_blocks) && nrow(ai_blocks) > 0) {
+        match_idx <- which(ai_blocks$summary == ev$title &
+                           substr(ai_blocks$start, 1, 16) == substr(ev$start, 1, 16))
+        if (length(match_idx) > 0) {
+          rv_gcal$ai_blocks <- ai_blocks[-match_idx[1], ]
+          save_ai_blocks_mongo()
+        }
+      }
+    } else {
+      hidden <- rv_gcal$hidden_events
+      if (is.null(hidden)) hidden <- character()
+      hidden <- c(hidden, paste0(ev$title, "|", substr(ev$start, 1, 16)))
+      rv_gcal$hidden_events <- hidden
+      tryCatch(mg_cal_hidden_set(uid(), hidden),
+               error = function(e) message("[StudyPilot] Hidden save error: ", e$message))
+    }
+    rv$refresh <- rv$refresh + 1
+    removeModal()
+    showNotification("🗑 Evento eliminado", type = "warning")
+  })
+
+  # ---- Drag-to-move handler (from JS) ----
+  observeEvent(input$cal_drag_move, {
+    d <- input$cal_drag_move
+    if (is.null(d) || is.null(d$title)) return()
+
+    # Try AI blocks first
     ai_blocks <- rv_gcal$ai_blocks
     if (!is.null(ai_blocks) && nrow(ai_blocks) > 0) {
-      ev <- input$cal_event_click
-      match_idx <- which(ai_blocks$summary == ev$title & substr(ai_blocks$start, 1, 16) == substr(ev$start, 1, 16))
+      match_idx <- which(ai_blocks$summary == d$title)
       if (length(match_idx) > 0) {
-        rv_gcal$ai_blocks <- ai_blocks[-match_idx[1], ]
+        idx <- match_idx[1]
+        date_part <- substr(ai_blocks$start[idx], 1, 10)
+        ai_blocks$start[idx] <- paste0(date_part, "T", d$new_start, ":00")
+        ai_blocks$end[idx] <- paste0(date_part, "T", d$new_end, ":00")
+        rv_gcal$ai_blocks <- ai_blocks
+        save_ai_blocks_mongo()
         rv$refresh <- rv$refresh + 1
+        return()
       }
     }
-    removeModal()
-    showNotification("🗑 Bloque eliminado", type = "warning")
+
+    # Non-AI: create override
+    override <- data.frame(
+      orig_title = d$title, orig_start = paste0("any_T", d$old_time),
+      new_title = d$title, new_start_time = d$new_start,
+      new_end_time = d$new_end, new_color = "",
+      stringsAsFactors = FALSE
+    )
+    existing <- rv_gcal$overrides
+    if (is.null(existing) || !is.data.frame(existing) || nrow(existing) == 0) {
+      existing <- override
+    } else {
+      existing <- rbind(existing, override)
+    }
+    rv_gcal$overrides <- existing
+    tryCatch(mg_cal_overrides_set(uid(), existing),
+             error = function(e) message("[StudyPilot] Drag override error: ", e$message))
+    rv$refresh <- rv$refresh + 1
+    showNotification("✅ Evento movido", type = "message", duration = 2)
   })
 
   observeEvent(input$schedule_clear_btn, {
@@ -2253,18 +2576,58 @@ server <- function(input, output, session) {
         }
         message("[StudyPilot] Smart Scheduler: ", nrow(prioridades), " activities prioritized")
 
-        # Step 3: Get free time slots
-        message("[StudyPilot] Smart Scheduler Step 3: Finding free time...")
+        # Step 3: Smart Scheduler con visión de semestre
+        message("[StudyPilot] Smart Scheduler Step 3: Finding free time (semester vision)...")
         gcal_events <- isolate(rv_gcal$events)
+        existing_ai <- isolate(rv_gcal$ai_blocks)
         sched_data <- tryCatch(mg_schedule_get(current_uid), error = function(e) data.frame())
-        free_slots <- get_free_time_slots(
-          gcal_events = gcal_events,
+
+        # Calcular horizonte: desde hoy hasta la última evaluación pendiente (o +2 semanas mínimo)
+        last_eval_date <- tryCatch({
+          pending <- all_a[all_a$done == 0 & !is.na(all_a$date), ]
+          if (nrow(pending) > 0) max(as.Date(pending$date), na.rm = TRUE) else Sys.Date() + 14
+        }, error = function(e) Sys.Date() + 14)
+        # Al menos 1 semana, máximo hasta fin de semestre
+        semester_end <- SEMESTER_START + 16 * 7
+        end_horizon <- min(max(last_eval_date + 1, Sys.Date() + 7), semester_end)
+        weeks_remaining <- ceiling(as.numeric(end_horizon - Sys.Date()) / 7)
+        message("[StudyPilot] Horizon: ", Sys.Date(), " → ", end_horizon,
+                " (", weeks_remaining, " weeks, last eval: ", last_eval_date, ")")
+
+        # Fusionar PDF + GCal para la semana actual como template de "busy"
+        fused_for_free <- tryCatch({
+          week_sun <- Sys.Date() - as.integer(format(Sys.Date(), "%w"))
+          df_p <- pdf_schedule_to_events(sched_data, week_sun)
+          df_g <- estandarizar_evento(gcal_events, "gcal")
+          fusionar_horarios(df_p, df_g)
+        }, error = function(e) {
+          message("[StudyPilot] Fusion for free slots failed: ", e$message)
+          estandarizar_evento(gcal_events, "gcal")
+        })
+
+        # Recortar white space a partir de la hora exacta de solicitud
+        now_time <- Sys.time()
+        # Agregar un evento "ficticio" que bloquee todo antes de ahora (hoy)
+        now_block <- estandarizar_evento(data.frame(
+          summary = "PASADO", start = paste0(Sys.Date(), "T00:00:00"),
+          end = format(now_time, "%Y-%m-%dT%H:%M:%S"),
+          location = "", color = "", is_ai = FALSE,
+          stringsAsFactors = FALSE
+        ), "system")
+        fused_for_free <- rbind(fused_for_free, now_block)
+
+        free_slots <- obtener_espacio_libre(
+          gcal_events = fused_for_free,
           schedule_data = sched_data,
+          ai_blocks = existing_ai,
           start_date = Sys.Date(),
-          end_date = Sys.Date() + 6,
+          end_date = min(Sys.Date() + 6, end_horizon),
           sleep_start = sleep_s,
           sleep_end = sleep_e
         )
+        message("[StudyPilot] Smart Scheduler: ", nrow(free_slots), " free slots, ",
+                if (nrow(free_slots) > 0) paste0(sum(free_slots$duration_min), " min total") else "0 min",
+                " | horizon=", weeks_remaining, " weeks")
         if (nrow(free_slots) == 0) {
           shinyjs::html("smart_sched_status",
             '<div class="alert alert-warning py-2 small">No se encontraron huecos libres en tu calendario esta semana.</div>')
@@ -2273,9 +2636,13 @@ server <- function(input, output, session) {
         }
         message("[StudyPilot] Smart Scheduler: ", nrow(free_slots), " free slots found")
 
-        # Step 4: Call LLM to generate study blocks
+        # Step 4: Call LLM to generate study blocks (with semester context)
         message("[StudyPilot] Smart Scheduler Step 4: Generating with AI...")
-        study_blocks <- generate_smart_schedule_llm(prioridades, free_slots)
+        study_blocks <- generate_smart_schedule_llm(
+          prioridades, free_slots,
+          weeks_remaining = weeks_remaining,
+          semester_end = as.character(end_horizon)
+        )
         if (nrow(study_blocks) == 0) {
           shinyjs::html("smart_sched_status",
             '<div class="alert alert-warning py-2 small">La IA no pudo generar bloques. Intenta de nuevo.</div>')
@@ -2284,8 +2651,8 @@ server <- function(input, output, session) {
         }
         message("[StudyPilot] Smart Scheduler: ", nrow(study_blocks), " study blocks generated!")
 
-        # Step 5: Convert to calendar events and inject
-        ai_events <- data.frame(
+        # Step 5: Convert to calendar events and inject (Fase 4: esquema estándar)
+        ai_events <- estandarizar_evento(data.frame(
           summary = study_blocks$titulo,
           start = paste0(study_blocks$fecha, "T", study_blocks$hora_inicio),
           end = paste0(study_blocks$fecha, "T", study_blocks$hora_fin),
@@ -2295,7 +2662,7 @@ server <- function(input, output, session) {
                       ifelse(study_blocks$prioridad == "media", "orange", "cyan"))),
           is_ai = TRUE,
           stringsAsFactors = FALSE
-        )
+        ), "ai")
         rv_gcal$ai_blocks <- ai_events
         rv$refresh <- isolate(rv$refresh) + 1
 
@@ -2319,7 +2686,7 @@ server <- function(input, output, session) {
   output$schedule_grid <- renderUI({
     rv$refresh
     sched <- tryCatch(mg_schedule_get(uid()), error = function(e) data.frame())
-    if (nrow(sched) == 0) return(NULL)
+    if (is.null(sched) || !is.data.frame(sched) || nrow(sched) == 0) return(NULL)
 
     days <- c("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado")
     colors <- c("#3b82f6", "#22c55e", "#8b5cf6", "#f97316", "#ec4899", "#06b6d4", "#eab308", "#10b981")
@@ -2441,6 +2808,90 @@ server <- function(input, output, session) {
   # ---- GOOGLE CALENDAR ----
   rv_gcal <- reactiveValues(events = NULL, ai_blocks = NULL)
 
+  # Fase 2: Reactive que genera el "Horario Maestro Ocupado" fusionando PDF + GCal + AI
+  horario_maestro <- reactive({
+    rv$refresh
+    tryCatch({
+      # 1. PDF schedule
+      sched_data <- tryCatch(mg_schedule_get(uid()), error = function(e) data.frame())
+      cw <- rv$cal_week
+      week_start <- SEMESTER_START + (cw - 1) * 7
+      df_pdf <- pdf_schedule_to_events(sched_data, week_start)
+      message("[HM] Step1 PDF: ", nrow(df_pdf), " events")
+
+      # 2. GCal events
+      df_gcal <- estandarizar_evento(rv_gcal$events, "gcal")
+      message("[HM] Step2 GCal: ", nrow(df_gcal), " events")
+
+      # 3. Fusionar
+      df_fused <- fusionar_horarios(df_pdf, df_gcal)
+      message("[HM] Step3 Fused: ", nrow(df_fused), " events")
+
+      # 4. AI blocks — forzar mismo schema antes de rbind
+      df_ai <- estandarizar_evento(rv_gcal$ai_blocks, "ai")
+      if (nrow(df_ai) > 0) {
+        df_ai$is_ai <- TRUE
+        # Forzar columnas character para evitar class mismatch en rbind
+        for (col in c("summary","start","end","location","color","source")) {
+          df_ai[[col]] <- as.character(df_ai[[col]])
+          if (nrow(df_fused) > 0) df_fused[[col]] <- as.character(df_fused[[col]])
+        }
+        df_fused <- if (nrow(df_fused) > 0) rbind(df_fused, df_ai) else df_ai
+      }
+      message("[HM] Step4 +AI: ", nrow(df_fused), " events total")
+
+      # 5. Overrides
+      overrides <- rv_gcal$overrides
+      if (!is.null(overrides) && is.data.frame(overrides) && nrow(overrides) > 0 && nrow(df_fused) > 0) {
+        for (ov in seq_len(nrow(overrides))) {
+          o <- overrides[ov, ]
+          match_idx <- which(df_fused$summary == o$orig_title &
+                             substr(df_fused$start, 1, 16) == substr(o$orig_start, 1, 16))
+          if (length(match_idx) > 0) {
+            idx <- match_idx[1]
+            date_part <- substr(df_fused$start[idx], 1, 10)
+            df_fused$summary[idx] <- o$new_title
+            df_fused$start[idx] <- paste0(date_part, "T", o$new_start_time, ":00")
+            df_fused$end[idx] <- paste0(date_part, "T", o$new_end_time, ":00")
+            df_fused$color[idx] <- o$new_color
+          }
+        }
+      }
+
+      # 6. Hidden events
+      hidden <- rv_gcal$hidden_events
+      if (!is.null(hidden) && length(hidden) > 0 && nrow(df_fused) > 0) {
+        ev_keys <- paste0(df_fused$summary, "|", substr(df_fused$start, 1, 16))
+        df_fused <- df_fused[!ev_keys %in% hidden, ]
+      }
+
+      # 7. Colores dinámicos
+      df_fused <- aplicar_colores_cursos(df_fused)
+
+      # 8. Timestamps limpios
+      df_fused <- estandarizar_timestamps(df_fused)
+
+      message("[HM] Final: ", nrow(df_fused), " events ready for calendar")
+      df_fused
+    }, error = function(e) {
+      message("[StudyPilot] horario_maestro CRASH: ", e$message)
+      message("[StudyPilot] Traceback: ", paste(sys.calls(), collapse=" → "))
+      estandarizar_evento(NULL)
+    })
+  })
+
+  # Cache calendar to localStorage for offline viewing
+  observe({
+    df <- horario_maestro()
+    if (!is.null(df) && is.data.frame(df) && nrow(df) > 0) {
+      events_list <- lapply(seq_len(nrow(df)), function(i) {
+        list(summary = df$summary[i], start = df$start[i], end = df$end[i],
+             color = df$color[i], is_ai = df$is_ai[i], source = df$source[i])
+      })
+      session$sendCustomMessage("cache_calendar", list(events = events_list))
+    }
+  })
+
   observeEvent(input$gcal_sync, {
     email <- trimws(input$gcal_email)
     if (nchar(email) < 5) {
@@ -2467,7 +2918,7 @@ server <- function(input, output, session) {
     } else if (nrow(events) == 0) {
       shinyjs::html("gcal_status_div", '<div class="alert alert-warning mt-2 small">No se encontraron eventos en las próximas semanas.</div>')
     } else {
-      rv_gcal$events <- events
+      rv_gcal$events <- estandarizar_evento(events, "gcal")
       parsed <- gcal_parse_to_activities(events)
       n_exams <- sum(parsed$is_exam)
       shinyjs::html("gcal_status_div", paste0(
