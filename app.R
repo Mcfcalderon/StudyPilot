@@ -484,12 +484,12 @@ ui <- fluidPage(
           console.log('[SP] No saved session, showing login form');
         }
       });
-      // Keepalive heartbeat
+      // Keepalive heartbeat — every 15s to prevent timeout
       setInterval(function() {
         if (window.Shiny && Shiny.shinyapp && Shiny.shinyapp.$socket) {
-          Shiny.setInputValue('keepalive', Date.now());
+          Shiny.setInputValue('keep_alive', Date.now(), {priority:'event'});
         }
-      }, 50000);
+      }, 15000);
     "))
   ),
   tags$head(
@@ -902,6 +902,9 @@ server <- function(input, output, session) {
     if (is.null(u)) return("")
     u$user
   }
+
+  # Heartbeat receiver — keeps session alive
+  observeEvent(input$keep_alive, { invisible() })
 
   # Track active tab for session restore
   observeEvent(input$main_nav, {

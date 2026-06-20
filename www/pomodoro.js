@@ -293,6 +293,12 @@ function showNotif(msg, type) {
   }
 }
 
+// Helper: get numeric input value from Shiny's wrapper div
+function getPomoDuration() {
+  var input = document.querySelector('#pomo_duration input[type="number"]');
+  return input ? (parseInt(input.value) || 25) : 25;
+}
+
 function pomoToggle() {
   if (pomo.running) {
     pomo.pausedRemaining = Math.max(0, pomo.endTimestamp - Date.now());
@@ -300,9 +306,8 @@ function pomoToggle() {
     clearTimeout(pomo.tickId);
     updateDisplay();
   } else {
-    var durSel = document.getElementById('pomo_duration');
-    if (durSel && pomo.pausedRemaining === null) {
-      pomo.workMin = parseInt(durSel.value) || 25;
+    if (pomo.pausedRemaining === null) {
+      pomo.workMin = getPomoDuration();
       pomo.durationSec = pomo.workMin * 60;
     }
     pomo.endTimestamp = Date.now() + (pomo.pausedRemaining !== null ? pomo.pausedRemaining : pomo.durationSec * 1000);
@@ -315,8 +320,7 @@ function pomoToggle() {
 
 function pomoReset() {
   pomo.running = false; clearTimeout(pomo.tickId); pomo.mode = 'work';
-  var d = document.getElementById('pomo_duration');
-  pomo.workMin = d ? parseInt(d.value) || 25 : 25;
+  pomo.workMin = getPomoDuration();
   pomo.durationSec = pomo.workMin * 60; pomo.pausedRemaining = null;
   updateDisplay();
 }
@@ -371,7 +375,8 @@ $(document).on('shiny:connected', function() {
   updateDisplay();
   updateOnlineStatus();
 
-  $(document).on('change', '#pomo_duration', function() {
+  // Listen on the actual input inside Shiny's wrapper
+  $(document).on('change', '#pomo_duration input', function() {
     if (!pomo.running && pomo.mode === 'work') {
       pomo.workMin = parseInt(this.value) || 25;
       pomo.durationSec = pomo.workMin * 60;
