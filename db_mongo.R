@@ -3,7 +3,7 @@
 library(mongolite)
 
 MONGO_URI <- Sys.getenv("MONGODB_URI")
-if (nchar(MONGO_URI) == 0) MONGO_URI <- "mongodb+srv://appuser:MiClave2026utec@plan-estudios.9ugygin.mongodb.net/plan_estudios?retryWrites=true&w=majority"
+if (nchar(MONGO_URI) == 0) stop("MONGODB_URI environment variable not set. See .Renviron.example")
 
 # Helper: get a collection connection with reuse (returns NULL if not initialized)
 .mongo_cache <- new.env(parent = emptyenv())

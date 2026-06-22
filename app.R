@@ -629,13 +629,21 @@ server <- function(input, output, session) {
   # ---- Custom Authentication ----
   auth_user <- reactiveVal(NULL)
 
-  # Hardcoded users (always available)
-  hardcoded_users <- data.frame(
-    user = c("marvin", "admin"),
-    password = c("utec2026", "admin123"),
-    name = c("Marvin", "Admin"),
-    stringsAsFactors = FALSE
-  )
+  # Fallback users from environment variables (not hardcoded for security)
+  hardcoded_users <- {
+    raw <- Sys.getenv("STUDYPILOT_ADMIN_USERS")  # format: "user1:pass1:Name1,user2:pass2:Name2"
+    if (nchar(raw) > 0) {
+      parts <- strsplit(trimws(strsplit(raw, ",")[[1]]), ":")
+      data.frame(
+        user = sapply(parts, `[`, 1),
+        password = sapply(parts, `[`, 2),
+        name = sapply(parts, `[`, 3),
+        stringsAsFactors = FALSE
+      )
+    } else {
+      data.frame(user = character(), password = character(), name = character(), stringsAsFactors = FALSE)
+    }
+  }
 
   # Helper: update auth message divs immediately via shinyjs
   auth_msg <- function(div_id, text, type = "error") {

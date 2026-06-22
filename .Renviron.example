@@ -1,0 +1,18 @@
+# ============ StudyPilot Environment Variables ============
+# Copy this file as .Renviron and fill in your values
+
+# MongoDB Atlas connection string
+MONGODB_URI=mongodb+srv://user:password@cluster.mongodb.net/dbname?retryWrites=true&w=majority
+
+# Gemini API keys (comma-separated for rotation)
+GEMINI_KEYS=key1,key2,key3
+
+# Or single key
+# GEMINI_API_KEY=your_single_key
+
+# SMTP for email notifications (optional)
+SMTP_USER=your@email.com
+SMTP_PASS=your_app_password
+
+# Admin users (optional fallback, format: user:pass:Name,user2:pass2:Name2)
+STUDYPILOT_ADMIN_USERS=admin:yourpass:Admin

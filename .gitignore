@@ -1,0 +1,17 @@
+# Secrets
+.Renviron
+.env
+
+# R artifacts
+.Rhistory
+.Rdata
+.RData
+*.Rproj.user/
+
+# Quarto output
+StudyPilot_Documentacion_files/
+StudyPilot_Documentacion.html
+
+# OS
+.DS_Store
+Thumbs.db

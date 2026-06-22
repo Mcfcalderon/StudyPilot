@@ -2,15 +2,17 @@
 library(ellmer)
 if (requireNamespace("blastula", quietly = TRUE)) library(blastula)
 
-# ============ API KEY ROTATION (7 keys) ============
-.gemini_keys <- c(
-  "AQ.Ab8RN6Jc70BFjY-gxNQm9Sqf9F2kaMRs5K4yexk8vUDwxx1tng",
-  "AQ.Ab8RN6JNwFWMiXK41CzY9LqviF7mCIGkMLfJtQdmLEv85GjegA",
-  "AQ.Ab8RN6ljiY5mry7GEI3IKbK7puLmGZR77KDmt2bI3A1YwU1uPA",
-  "AQ.Ab8RN6K-PWVdXcqmt2mQo20LbngV9GtI5xZBxyelPWY_GNZ48A",
-  "AQ.Ab8RN6L4BJJ4WW6ScIKKziMmDdD29_D5PXOtGsnWt39aJGuliA",
-  "AQ.Ab8RN6JE9Nf29uFmtCeSV7aqVKmzdNvRNSxImETA33tY1HV0BA"
-)
+# ============ API KEY ROTATION ============
+# Keys loaded from environment variable GEMINI_KEYS (comma-separated)
+.gemini_keys <- {
+  raw <- Sys.getenv("GEMINI_KEYS")
+  if (nchar(raw) > 0) trimws(strsplit(raw, ",")[[1]])
+  else {
+    single <- Sys.getenv("GEMINI_API_KEY")
+    if (nchar(single) > 0) single
+    else stop("GEMINI_KEYS or GEMINI_API_KEY environment variable not set. See .Renviron.example")
+  }
+}
 assign(".gemini_key_idx", 1L, envir = globalenv())
 
 get_gemini <- function() {
@@ -263,8 +265,8 @@ ai_extract_syllabus <- function(syllabus_text) {
 # ============ SEND EMAIL NOTIFICATION ============
 # ============ SEND VERIFICATION CODE ============
 get_smtp_creds <- function() {
-  Sys.setenv(SMTP_PASSWORD = {p <- Sys.getenv("SMTP_PASS"); if(nchar(p)==0) "chftnqudhczoelka" else p})
-  user <- Sys.getenv("SMTP_USER"); if(nchar(user)==0) user <- "maarvincf2025@gmail.com"
+  Sys.setenv(SMTP_PASSWORD = Sys.getenv("SMTP_PASS"))
+  user <- Sys.getenv("SMTP_USER")
   list(user = user, cred = blastula::creds_envvar(user = user, pass_envvar = "SMTP_PASSWORD",
     host = "smtp.gmail.com", port = 465, use_ssl = TRUE))
 }

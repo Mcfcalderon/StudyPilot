@@ -29,9 +29,9 @@ lang: es
 
 La plataforma opera como una **Progressive Web App (PWA) Offline-First**: se instala como app nativa en móviles y escritorio, mantiene la UI visible sin conexión mediante caché de Service Worker + localStorage, y persiste la sesión del usuario entre recargas de página (auto-login). Datos almacenados en MongoDB Atlas con autenticación propia y contraseñas hasheadas con sodium (scrypt).
 
-**URL de la aplicación:** [https://studypilot.shinyapps.io/plataforma/](https://studypilot.shinyapps.io/plataforma/)
+**URL de la aplicación:** <https://studypilot.shinyapps.io/plataforma/>
 
-**Repositorio:** [https://github.com/Mcfcalderon/StudyPilot](https://github.com/Mcfcalderon/StudyPilot)
+**Repositorio:** <https://github.com/Mcfcalderon/StudyPilot>
 
 # Problemática
 
@@ -41,18 +41,18 @@ En el entorno académico universitario actual, los estudiantes enfrentan una car
 
 ## Problemas identificados
 
-1. **Dispersión de información académica**: Los sílabos, horarios, evaluaciones y notas están en documentos separados sin una vista unificada.
-2. **Cálculo manual de promedios**: Los estudiantes realizan cálculos manuales para saber su promedio parcial y cuánto necesitan en evaluaciones futuras para aprobar.
-3. **Falta de visibilidad temporal**: No existe una herramienta que muestre qué evaluaciones se aproximan, cuáles están atrasadas, y cuál es la prioridad real.
-4. **Ingreso manual tedioso**: Cargar los datos de 6+ cursos al inicio de cada ciclo requiere horas de trabajo.
-5. **Horarios fragmentados**: El horario del PDF de matrícula, Google Calendar y bloques de estudio viven en lugares separados sin vista unificada.
-6. **Herramientas genéricas**: Las aplicaciones existentes no están adaptadas al sistema universitario peruano (escala de 0-20, estructura de sílabos UTEC).
+1.  **Dispersión de información académica**: Los sílabos, horarios, evaluaciones y notas están en documentos separados sin una vista unificada.
+2.  **Cálculo manual de promedios**: Los estudiantes realizan cálculos manuales para saber su promedio parcial y cuánto necesitan en evaluaciones futuras para aprobar.
+3.  **Falta de visibilidad temporal**: No existe una herramienta que muestre qué evaluaciones se aproximan, cuáles están atrasadas, y cuál es la prioridad real.
+4.  **Ingreso manual tedioso**: Cargar los datos de 6+ cursos al inicio de cada ciclo requiere horas de trabajo.
+5.  **Horarios fragmentados**: El horario del PDF de matrícula, Google Calendar y bloques de estudio viven en lugares separados sin vista unificada.
+6.  **Herramientas genéricas**: Las aplicaciones existentes no están adaptadas al sistema universitario peruano (escala de 0-20, estructura de sílabos UTEC).
 
 # Análisis Comparativo
 
 | Característica | MyStudyLife | Notion | PowerPlanner | **StudyPilot** |
-|---|---|---|---|---|
-| **Precio** | Gratis | Freemium | $1.99 | **Gratis** |
+|----|----|----|----|----|
+| **Precio** | Gratis | Freemium | \$1.99 | **Gratis** |
 | **Extracción IA de sílabos** | No | No | No | **Sí (batch)** |
 | **Horario desde PDF** | No | No | No | **Sí** |
 | **Fusión GCal + PDF + IA** | No | No | No | **Sí** |
@@ -65,7 +65,7 @@ En el entorno académico universitario actual, los estudiantes enfrentan una car
 | **Drag-to-move calendario** | Sí | Sí | No | **Sí** |
 | **Adaptado a Perú** | No | No | No | **Sí** |
 
-: Comparativa de StudyPilot vs. competidores principales {#tbl-comparativa}
+: Comparativa de StudyPilot vs. competidores principales
 
 # Arquitectura del Sistema
 
@@ -124,7 +124,7 @@ digraph architecture {
 ## Stack tecnológico
 
 | Componente | Tecnología | Detalle |
-|---|---|---|
+|----|----|----|
 | **Lenguaje** | R | 4.5+ |
 | **Framework Web** | Shiny + bslib | Bootstrap 5 |
 | **Base de datos** | MongoDB Atlas | Cloud, 12 colecciones |
@@ -286,11 +286,11 @@ Shiny bloquea la UI al perder conexión con overlays grises. StudyPilot los elim
 
 Al recargar la página (F5), el usuario entra directamente sin login:
 
-1. **Login** → R genera token `digest::digest(user + salt, "md5")` → envía `sendCustomMessage("save_session")` → JS guarda `sp_user` + `sp_token` en localStorage.
-2. **Reload** → `shiny:connected` se dispara → JS lee localStorage → espera 500ms (anti race condition) → envía `Shiny.setInputValue("auto_login")` → R valida token → `auth_user()` sin contraseña → `shinyjs::hide("auth_overlay")`.
-3. **Logout** → R envía `execute_logout` → JS borra TODO localStorage → `window.location.reload(true)`.
-4. **Anti-flicker**: `login_form_container` está hidden por defecto. Se muestra solo si no hay sesión guardada.
-5. **Tab restore**: El tab activo se guarda en `sp_active_tab` y se restaura con `bslib::nav_select()` al auto-login.
+1.  **Login** → R genera token `digest::digest(user + salt, "md5")` → envía `sendCustomMessage("save_session")` → JS guarda `sp_user` + `sp_token` en localStorage.
+2.  **Reload** → `shiny:connected` se dispara → JS lee localStorage → espera 500ms (anti race condition) → envía `Shiny.setInputValue("auto_login")` → R valida token → `auth_user()` sin contraseña → `shinyjs::hide("auth_overlay")`.
+3.  **Logout** → R envía `execute_logout` → JS borra TODO localStorage → `window.location.reload(true)`.
+4.  **Anti-flicker**: `login_form_container` está hidden por defecto. Se muestra solo si no hay sesión guardada.
+5.  **Tab restore**: El tab activo se guarda en `sp_active_tab` y se restaura con `bslib::nav_select()` al auto-login.
 
 ## localStorage Calendar Cache
 
@@ -328,7 +328,7 @@ Al recargar la página (F5), el usuario entra directamente sin login:
 
 - 6 claves de Gemini con failover automático via `ai_call()`
 - Si una clave recibe HTTP 429, rota a la siguiente
-- Capacidad total: ~90 RPM, ~9,000 solicitudes/día
+- Capacidad total: \~90 RPM, \~9,000 solicitudes/día
 
 ## Base de datos
 
@@ -338,18 +338,18 @@ MongoDB Atlas con conexión TLS/SSL y connection pooling (`.mongo_cache`).
 
 ## Técnicas
 
-1. **PDFs de imagen**: `pdftools` no lee PDFs escaneados — solo texto nativo.
-2. **Patrón `globalenv()`**: Variables compartidas en environment global — problemas en multi-worker.
-3. **Timeout en IA**: Llamadas largas pueden exceder el timeout de shinyapps.io free tier.
-4. **API keys hardcodeadas**: Claves en código fuente (mitigado con repo privado).
+1.  **PDFs de imagen**: `pdftools` no lee PDFs escaneados — solo texto nativo.
+2.  **Patrón `globalenv()`**: Variables compartidas en environment global — problemas en multi-worker.
+3.  **Timeout en IA**: Llamadas largas pueden exceder el timeout de shinyapps.io free tier.
+4.  **API keys hardcodeadas**: Claves en código fuente (mitigado con repo privado).
 
 ## Funcionales
 
-5. **Sin recuperación de contraseña**: No hay flujo "olvidé mi contraseña".
-6. **Extracción no determinística**: La IA puede devolver resultados variables para el mismo PDF.
-7. **Escala fija**: Calificaciones sobre 20 hardcodeado.
-8. **Sin exportar datos**: No hay opción de descargar como CSV/Excel.
-9. **Sin colaboración**: No se comparten datos entre estudiantes.
+5.  **Sin recuperación de contraseña**: No hay flujo "olvidé mi contraseña".
+6.  **Extracción no determinística**: La IA puede devolver resultados variables para el mismo PDF.
+7.  **Escala fija**: Calificaciones sobre 20 hardcodeado.
+8.  **Sin exportar datos**: No hay opción de descargar como CSV/Excel.
+9.  **Sin colaboración**: No se comparten datos entre estudiantes.
 
 ## De UX
 
@@ -360,7 +360,7 @@ MongoDB Atlas con conexión TLS/SSL y connection pooling (`.mongo_cache`).
 # Trabajo Futuro
 
 | Prioridad | Mejora | Estado |
-|---|---|---|
+|----|----|----|
 | Alta | Variables de entorno para API keys | Pendiente |
 | Alta | Recuperación de contraseña via email | Pendiente |
 | Alta | Límite de intentos de login | Pendiente |
@@ -381,11 +381,11 @@ MongoDB Atlas con conexión TLS/SSL y connection pooling (`.mongo_cache`).
 # Historial de Desarrollo
 
 | Fase | Descripción | Deploys |
-|---|---|---|
-| Chat 1 | Versión inicial con shinymanager, cursos hardcodeados, MongoDB básico | ~8 |
-| Chat 2 | Custom auth, lazy MongoDB init, extracción IA de sílabos, fix disconnects | ~6 |
-| Chat 3 | Privacidad por usuario, rotación API keys, horario IA, grades fix, PWA inicial | ~10 |
-| **Chat 4** | **Calendario fusionado, Smart Scheduler semestral, PWA Offline-First, Auto-Login, batch upload, Pomodoro delta-time, CRUD drag/drop, migración a studypilot.shinyapps.io** | **~12** |
+|----|----|----|
+| Chat 1 | Versión inicial con shinymanager, cursos hardcodeados, MongoDB básico | \~8 |
+| Chat 2 | Custom auth, lazy MongoDB init, extracción IA de sílabos, fix disconnects | \~6 |
+| Chat 3 | Privacidad por usuario, rotación API keys, horario IA, grades fix, PWA inicial | \~10 |
+| **Chat 4** | **Calendario fusionado, Smart Scheduler semestral, PWA Offline-First, Auto-Login, batch upload, Pomodoro delta-time, CRUD drag/drop, migración a studypilot.shinyapps.io** | **\~12** |
 
 ## Bugs críticos resueltos (Chat 4)
 
@@ -425,7 +425,7 @@ library(lubridate)    # Manejo de fechas/intervalos
 ## B. Esquema MongoDB
 
 | Colección | Campos principales | Filtro user_id |
-|---|---|---|
+|----|----|----|
 | `users` | user, password (hash), name, admin | No (global) |
 | `courses` | id, name, short, credits, professor, formula, eval_day, color | Sí |
 | `activities` | act_id, course_id, type, name, code, date, week, weight, done, is_calificada | Sí |
@@ -442,7 +442,7 @@ library(lubridate)    # Manejo de fechas/intervalos
 ## C. Funciones de IA (`ai_functions.R`)
 
 | Función | Propósito |
-|---|---|
+|----|----|
 | `ai_extract_syllabus()` | Extrae curso/evaluaciones/temas de PDF de sílabo |
 | `ai_extract_schedule()` | Extrae horario de consolidado de matrícula |
 | `ai_generate_summary()` | Genera resumen + conceptos + mapa conceptual |
@@ -455,7 +455,7 @@ library(lubridate)    # Manejo de fechas/intervalos
 ## D. Funciones de Calendario (`google_cal.R`)
 
 | Función | Propósito |
-|---|---|
+|----|----|
 | `estandarizar_evento()` | Normaliza cualquier df al schema estándar (7 columnas) |
 | `estandarizar_timestamps()` | Limpia start/end: quita Z, +offset, asegura :SS |
 | `aplicar_colores_cursos()` | Asigna colores dinámicos con anti-colisión GCal |
@@ -467,16 +467,16 @@ library(lubridate)    # Manejo de fechas/intervalos
 
 ## E. Métricas del proyecto
 
-| Métrica | Valor |
-|---|---|
-| Líneas de código total | ~7,200 |
-| Archivos R | 7 |
-| Archivos web (CSS/JS/SVG/JSON) | 5 |
-| Funciones MongoDB | 20+ |
-| Funciones IA | 8 |
-| Funciones Calendar | 8 |
-| Despliegues a producción | ~36 |
-| Colecciones MongoDB | 12 |
-| API keys Gemini | 6 |
-| Pestañas de la app | 10 |
-| Sesiones de desarrollo | 4 |
+| Métrica                        | Valor   |
+|--------------------------------|---------|
+| Líneas de código total         | \~7,200 |
+| Archivos R                     | 7       |
+| Archivos web (CSS/JS/SVG/JSON) | 5       |
+| Funciones MongoDB              | 20+     |
+| Funciones IA                   | 8       |
+| Funciones Calendar             | 8       |
+| Despliegues a producción       | \~36    |
+| Colecciones MongoDB            | 12      |
+| API keys Gemini                | 6       |
+| Pestañas de la app             | 10      |
+| Sesiones de desarrollo         | 4       |
