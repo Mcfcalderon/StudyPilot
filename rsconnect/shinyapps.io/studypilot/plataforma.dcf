@@ -5,6 +5,6 @@ account: studypilot
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 17534798
-bundleId: 12163944
+bundleId: 12174042
 url: https://studypilot.shinyapps.io/plataforma/
 version: 1

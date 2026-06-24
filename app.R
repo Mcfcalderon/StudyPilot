@@ -882,6 +882,33 @@ server <- function(input, output, session) {
       }
     }, error = function(e) message("[StudyPilot] Schedule auto-load error: ", e$message))
 
+    # Auto-cargar AI blocks persistidos
+    tryCatch({
+      saved_ai <- mg_ai_blocks_get(uid())
+      if (nrow(saved_ai) > 0) {
+        rv_gcal$ai_blocks <- saved_ai
+        message("[StudyPilot] Auto-loaded ", nrow(saved_ai), " AI blocks")
+      }
+    }, error = function(e) message("[StudyPilot] AI blocks load error: ", e$message))
+
+    # Auto-cargar overrides (ediciones locales del usuario)
+    tryCatch({
+      saved_ov <- mg_cal_overrides_get(uid())
+      if (nrow(saved_ov) > 0) {
+        rv_gcal$overrides <- saved_ov
+        message("[StudyPilot] Auto-loaded ", nrow(saved_ov), " calendar overrides")
+      }
+    }, error = function(e) message("[StudyPilot] Overrides load error: ", e$message))
+
+    # Auto-cargar eventos ocultos
+    tryCatch({
+      saved_hidden <- mg_cal_hidden_get(uid())
+      if (length(saved_hidden) > 0) {
+        rv_gcal$hidden_events <- saved_hidden
+        message("[StudyPilot] Auto-loaded ", length(saved_hidden), " hidden events")
+      }
+    }, error = function(e) message("[StudyPilot] Hidden load error: ", e$message))
+
     rv$refresh <- isolate(rv$refresh) + 1
   })
 

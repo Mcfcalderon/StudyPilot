@@ -51,7 +51,7 @@ En el entorno académico universitario actual, los estudiantes enfrentan una car
 # Análisis Comparativo
 
 | Característica | MyStudyLife | Notion | PowerPlanner | **StudyPilot** |
-|----|----|----|----|----|
+|---------------|---------------|---------------|---------------|---------------|
 | **Precio** | Gratis | Freemium | \$1.99 | **Gratis** |
 | **Extracción IA de sílabos** | No | No | No | **Sí (batch)** |
 | **Horario desde PDF** | No | No | No | **Sí** |
@@ -124,7 +124,7 @@ digraph architecture {
 ## Stack tecnológico
 
 | Componente | Tecnología | Detalle |
-|----|----|----|
+|------------------------|------------------------|------------------------|
 | **Lenguaje** | R | 4.5+ |
 | **Framework Web** | Shiny + bslib | Bootstrap 5 |
 | **Base de datos** | MongoDB Atlas | Cloud, 12 colecciones |
@@ -360,7 +360,7 @@ MongoDB Atlas con conexión TLS/SSL y connection pooling (`.mongo_cache`).
 # Trabajo Futuro
 
 | Prioridad | Mejora | Estado |
-|----|----|----|
+|------------------------|------------------------|------------------------|
 | Alta | Variables de entorno para API keys | Pendiente |
 | Alta | Recuperación de contraseña via email | Pendiente |
 | Alta | Límite de intentos de login | Pendiente |
@@ -381,7 +381,7 @@ MongoDB Atlas con conexión TLS/SSL y connection pooling (`.mongo_cache`).
 # Historial de Desarrollo
 
 | Fase | Descripción | Deploys |
-|----|----|----|
+|------------------------|------------------------|------------------------|
 | Chat 1 | Versión inicial con shinymanager, cursos hardcodeados, MongoDB básico | \~8 |
 | Chat 2 | Custom auth, lazy MongoDB init, extracción IA de sílabos, fix disconnects | \~6 |
 | Chat 3 | Privacidad por usuario, rotación API keys, horario IA, grades fix, PWA inicial | \~10 |
@@ -425,7 +425,7 @@ library(lubridate)    # Manejo de fechas/intervalos
 ## B. Esquema MongoDB
 
 | Colección | Campos principales | Filtro user_id |
-|----|----|----|
+|------------------------|------------------------|------------------------|
 | `users` | user, password (hash), name, admin | No (global) |
 | `courses` | id, name, short, credits, professor, formula, eval_day, color | Sí |
 | `activities` | act_id, course_id, type, name, code, date, week, weight, done, is_calificada | Sí |
@@ -442,7 +442,7 @@ library(lubridate)    # Manejo de fechas/intervalos
 ## C. Funciones de IA (`ai_functions.R`)
 
 | Función | Propósito |
-|----|----|
+|------------------------------------|------------------------------------|
 | `ai_extract_syllabus()` | Extrae curso/evaluaciones/temas de PDF de sílabo |
 | `ai_extract_schedule()` | Extrae horario de consolidado de matrícula |
 | `ai_generate_summary()` | Genera resumen + conceptos + mapa conceptual |
@@ -455,7 +455,7 @@ library(lubridate)    # Manejo de fechas/intervalos
 ## D. Funciones de Calendario (`google_cal.R`)
 
 | Función | Propósito |
-|----|----|
+|------------------------------------|------------------------------------|
 | `estandarizar_evento()` | Normaliza cualquier df al schema estándar (7 columnas) |
 | `estandarizar_timestamps()` | Limpia start/end: quita Z, +offset, asegura :SS |
 | `aplicar_colores_cursos()` | Asigna colores dinámicos con anti-colisión GCal |

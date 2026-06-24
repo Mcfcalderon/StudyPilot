@@ -3,7 +3,10 @@
 library(mongolite)
 
 MONGO_URI <- Sys.getenv("MONGODB_URI")
-if (nchar(MONGO_URI) == 0) stop("MONGODB_URI environment variable not set. See .Renviron.example")
+if (nchar(MONGO_URI) == 0) {
+  warning("[StudyPilot] MONGODB_URI not set. DB functions will fail. See .Renviron.example")
+  MONGO_URI <- ""
+}
 
 # Helper: get a collection connection with reuse (returns NULL if not initialized)
 .mongo_cache <- new.env(parent = emptyenv())

@@ -10,7 +10,10 @@ if (requireNamespace("blastula", quietly = TRUE)) library(blastula)
   else {
     single <- Sys.getenv("GEMINI_API_KEY")
     if (nchar(single) > 0) single
-    else stop("GEMINI_KEYS or GEMINI_API_KEY environment variable not set. See .Renviron.example")
+    else {
+      warning("[StudyPilot] GEMINI_KEYS not set. AI functions will fail. See .Renviron.example")
+      "PLACEHOLDER_KEY"
+    }
   }
 }
 assign(".gemini_key_idx", 1L, envir = globalenv())
