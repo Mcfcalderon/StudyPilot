@@ -1,9 +1,15 @@
+// ============ StudyPilot — pomodoro.js (v4 fixed) ============
+// Loaded in <head>, so document.body may NOT exist yet.
+// All DOM access is deferred to DOMContentLoaded or jQuery ready.
+
+try {
+
 // ============ SERVICE WORKER REGISTRATION ============
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').then(function(reg) {
     console.log('[SP] SW registered');
   }).catch(function(err) {
-    console.log('[SP] SW failed:', err);
+    console.log('[SP] SW registration failed:', err);
   });
 }
 
@@ -13,40 +19,34 @@ var deferredInstallPrompt = null;
 window.addEventListener('beforeinstallprompt', function(e) {
   e.preventDefault();
   deferredInstallPrompt = e;
-  // Show the install button if it exists
   var btn = document.getElementById('btn_install_app');
-  if (btn) {
-    btn.style.display = 'inline-flex';
-    btn.classList.add('pwa-install-ready');
-  }
+  if (btn) { btn.style.display = 'inline-flex'; }
   console.log('[SP] Install prompt captured');
 });
 
 function triggerPWAInstall() {
   if (!deferredInstallPrompt) {
-    // Fallback: tell user how to install manually
-    alert('Para instalar StudyPilot:\n\n' +
-      '📱 Móvil: Menú ⋮ → "Añadir a pantalla de inicio"\n' +
-      '💻 PC: Barra de dirección → icono de instalar ⬇');
+    alert('Para instalar StudyPilot:\n\n📱 Móvil: Menú ⋮ → "Añadir a pantalla de inicio"\n💻 PC: Barra de dirección → icono de instalar ⬇');
     return;
   }
   deferredInstallPrompt.prompt();
   deferredInstallPrompt.userChoice.then(function(choice) {
     console.log('[SP] Install choice:', choice.outcome);
     deferredInstallPrompt = null;
-    var btn = document.getElementById('btn_install_app');
-    if (btn && choice.outcome === 'accepted') btn.style.display = 'none';
+    if (choice.outcome === 'accepted') {
+      var btn = document.getElementById('btn_install_app');
+      if (btn) btn.style.display = 'none';
+    }
   });
 }
 
 window.addEventListener('appinstalled', function() {
-  console.log('[SP] App installed');
   deferredInstallPrompt = null;
   var btn = document.getElementById('btn_install_app');
   if (btn) btn.style.display = 'none';
 });
 
-// ============ OFFLINE DETECTION + SHINY DISCONNECT OVERRIDE ============
+// ============ OFFLINE DETECTION ============
 var shinyDisconnected = false;
 
 function updateOnlineStatus() {
@@ -56,95 +56,38 @@ function updateOnlineStatus() {
   }
   var banner = document.getElementById('offline-banner');
   if (banner) banner.style.display = isOnline ? 'none' : 'flex';
-
-  // Disable API buttons when offline
   ['syllabus_extract_btn', 'gcal_sync', 'btn_gen_schedule', 'schedule_extract_btn'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el) { el.disabled = !isOnline; el.style.opacity = isOnline ? '1' : '0.5'; }
   });
-
-  // If back online and Shiny was disconnected, try to reconnect
   if (isOnline && shinyDisconnected) {
-    setTimeout(function() { location.reload(); }, 2000);
+    setTimeout(function() { location.reload(); }, 3000);
   }
 }
 
 window.addEventListener('online', updateOnlineStatus);
 window.addEventListener('offline', updateOnlineStatus);
 
-// ============ NUCLEAR: kill ALL Shiny disconnect UI ============
+// ============ NUCLEAR SHINY DISCONNECT OVERRIDE ============
 function nukeShinyDisconnectUI() {
-  // Remove overlays
   ['shiny-disconnected-overlay', 'shiny-reconnect-text'].forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.remove();
   });
-  // Remove notification panel and all notifications
   document.querySelectorAll('.shiny-notification, #shiny-notification-panel, .shiny-notification-panel, .modal-backdrop').forEach(function(el) {
     el.remove();
   });
-  // Unblock body
-  document.body.style.pointerEvents = 'auto';
-  document.body.style.filter = 'none';
-  document.body.classList.remove('shiny-busy');
-  // Remove any inline gray overlay Shiny injects
+  if (document.body) {
+    document.body.style.pointerEvents = 'auto';
+    document.body.style.filter = 'none';
+    document.body.classList.remove('shiny-busy');
+  }
   document.querySelectorAll('[id*="disconnected"], [class*="disconnected"]').forEach(function(el) {
     el.style.display = 'none';
-    el.style.visibility = 'hidden';
   });
 }
 
-// Run nuke on multiple events and with MutationObserver
-$(document).on('shiny:disconnected shiny:error shiny:recalculating', function(event) {
-  if (event.type === 'shiny:disconnected') {
-    shinyDisconnected = true;
-  }
-  nukeShinyDisconnectUI();
-  // Run again after delays (Shiny injects elements asynchronously)
-  setTimeout(nukeShinyDisconnectUI, 50);
-  setTimeout(nukeShinyDisconnectUI, 200);
-  setTimeout(nukeShinyDisconnectUI, 500);
-  setTimeout(nukeShinyDisconnectUI, 1500);
-});
-
-// MutationObserver: catch any disconnect element Shiny creates after our initial nuke
-var shinyNukeObserver = new MutationObserver(function(mutations) {
-  mutations.forEach(function(m) {
-    m.addedNodes.forEach(function(node) {
-      if (node.nodeType !== 1) return;
-      var id = node.id || '';
-      var cls = node.className || '';
-      if (id.indexOf('disconnected') !== -1 || id.indexOf('shiny-notification') !== -1 ||
-          cls.indexOf('shiny-notification') !== -1 || cls.indexOf('modal-backdrop') !== -1) {
-        node.remove();
-      }
-    });
-  });
-});
-shinyNukeObserver.observe(document.body, { childList: true, subtree: true });
-
-// Override Shiny's disconnect behavior: keep UI visible
-$(document).on('shiny:disconnected', function(event) {
-  shinyDisconnected = true;
-  nukeShinyDisconnectUI();
-
-  // Show the offline banner
-  var banner = document.getElementById('offline-banner');
-  if (banner) banner.style.display = 'flex';
-
-  // Load calendar from localStorage fallback
-  loadCalendarFromCache();
-
-  // If online, auto-reload after delay (likely server restart, not network issue)
-  if (navigator.onLine) {
-    setTimeout(function() { location.reload(); }, 4000);
-  }
-});
-
 // ============ LOCALSTORAGE CALENDAR CACHE ============
-// Handlers are registered inside shiny:connected (see below)
-
-// Fallback: when disconnected, render cached calendar as static HTML
 function loadCalendarFromCache() {
   try {
     var cached = localStorage.getItem('sp_calendar_events');
@@ -152,20 +95,15 @@ function loadCalendarFromCache() {
     if (!cached) return;
     var events = JSON.parse(cached);
     if (!events || events.length === 0) return;
-
-    // Find the calendar container and show a notice
     var calContainer = document.querySelector('.cal-container');
     if (!calContainer) return;
-
+    if (calContainer.querySelector('.offline-notice')) return;
     var notice = document.createElement('div');
+    notice.className = 'offline-notice';
     notice.style.cssText = 'background:#fef3c7;color:#92400e;padding:8px 16px;border-radius:8px;margin-bottom:8px;font-size:0.8rem;font-weight:600;text-align:center;';
-    notice.textContent = '📦 Vista offline — datos guardados el ' + (ts ? new Date(ts).toLocaleString() : 'anteriormente');
+    notice.textContent = '📦 Vista offline — datos del ' + (ts ? new Date(ts).toLocaleString() : 'caché');
     calContainer.insertBefore(notice, calContainer.firstChild);
-
-    console.log('[SP] Loaded', events.length, 'events from cache');
-  } catch(e) {
-    console.log('[SP] Cache load failed:', e);
-  }
+  } catch(e) { console.log('[SP] Cache load error:', e); }
 }
 
 // ============ POMODORO TIMER (DELTA-TIME) ============
@@ -191,23 +129,26 @@ function getTimeLeft() {
 
 function updateDisplay() {
   var el = document.getElementById('pomo-timer');
-  var modeEl = document.getElementById('pomo-mode-label');
-  var dotsEl = document.getElementById('pomo-dots');
-  var sessEl = document.getElementById('pomo-sessions');
-  var totalEl = document.getElementById('pomo-total');
   if (!el) return;
 
   var totalSec = Math.ceil(getTimeLeft() / 1000);
-  el.textContent = String(Math.floor(totalSec / 60)).padStart(2, '0') + ':' + String(totalSec % 60).padStart(2, '0');
+  var mm = String(Math.floor(totalSec / 60)).padStart(2, '0');
+  var ss = String(totalSec % 60).padStart(2, '0');
+  el.textContent = mm + ':' + ss;
   el.style.color = pomo.mode === 'work' ? '#dc2626' : '#16a34a';
 
+  var modeEl = document.getElementById('pomo-mode-label');
   if (modeEl) {
     modeEl.textContent = pomo.mode === 'work' ? '🎯 Tiempo de Estudio' :
       pomo.mode === 'short' ? '☕ Descanso Corto' : '🌴 Descanso Largo';
   }
-  var toggleBtn = document.getElementById('pomo_toggle');
-  if (toggleBtn) toggleBtn.textContent = pomo.running ? '⏸ Pausar' : '▶ Iniciar';
 
+  var toggleBtn = document.getElementById('pomo_toggle');
+  if (toggleBtn) {
+    toggleBtn.innerHTML = pomo.running ? '⏸ Pausar' : '▶ Iniciar';
+  }
+
+  var dotsEl = document.getElementById('pomo-dots');
   if (dotsEl) {
     var dots = '';
     for (var i = 0; i < 4; i++) {
@@ -218,7 +159,10 @@ function updateDisplay() {
     }
     dotsEl.innerHTML = dots;
   }
+
+  var sessEl = document.getElementById('pomo-sessions');
   if (sessEl) sessEl.textContent = pomo.sessions;
+  var totalEl = document.getElementById('pomo-total');
   if (totalEl) totalEl.textContent = (pomo.sessions * pomo.workMin) + ' min';
 }
 
@@ -228,55 +172,53 @@ function pomoTick() {
   if (msLeft <= 0) {
     pomo.running = false;
     pomo.pausedRemaining = null;
+    clearTimeout(pomo.tickId);
     if (pomo.mode === 'work') {
       pomo.sessions++;
-      if (window.Shiny && Shiny.setInputValue) Shiny.setInputValue('pomo_session_done', pomo.sessions, {priority: 'event'});
+      if (window.Shiny && Shiny.setInputValue) {
+        Shiny.setInputValue('pomo_session_done', pomo.sessions, {priority: 'event'});
+      }
       var isLong = pomo.sessions % 4 === 0;
       pomo.mode = isLong ? 'long' : 'short';
       pomo.durationSec = isLong ? pomo.longMin * 60 : pomo.shortMin * 60;
       pomo.pausedRemaining = pomo.durationSec * 1000;
-      updateDisplay();
       showNotif(isLong ? '🌴 Descanso largo! Sesiones: ' + pomo.sessions : '☕ Descanso corto!', 'work_done');
     } else {
       pomo.mode = 'work';
       pomo.durationSec = pomo.workMin * 60;
       pomo.pausedRemaining = pomo.durationSec * 1000;
-      updateDisplay();
       showNotif('🎯 A estudiar! (' + pomo.workMin + ' min)', 'break_done');
     }
+    updateDisplay();
     return;
   }
   updateDisplay();
   pomo.tickId = setTimeout(pomoTick, 1000);
 }
 
+// ============ NOTIFICATION SOUNDS (Web Audio API) ============
 function playSound(type) {
   try {
     var ctx = new (window.AudioContext || window.webkitAudioContext)();
     var now = ctx.currentTime;
-    if (type === 'work_done') {
-      [523.25, 659.25, 783.99].forEach(function(freq, i) {
-        var o = ctx.createOscillator(), g = ctx.createGain();
-        o.type = 'sine'; o.frequency.value = freq;
-        g.gain.setValueAtTime(0, now + i*0.25);
-        g.gain.linearRampToValueAtTime(0.4, now + i*0.25 + 0.05);
-        g.gain.exponentialRampToValueAtTime(0.001, now + i*0.25 + 0.6);
-        o.connect(g); g.connect(ctx.destination);
-        o.start(now + i*0.25); o.stop(now + i*0.25 + 0.7);
-      });
-    } else {
-      [880, 1108.73].forEach(function(freq, i) {
-        var o = ctx.createOscillator(), g = ctx.createGain();
-        o.type = 'triangle'; o.frequency.value = freq;
-        g.gain.setValueAtTime(0, now + i*0.2);
-        g.gain.linearRampToValueAtTime(0.5, now + i*0.2 + 0.03);
-        g.gain.exponentialRampToValueAtTime(0.001, now + i*0.2 + 0.3);
-        o.connect(g); g.connect(ctx.destination);
-        o.start(now + i*0.2); o.stop(now + i*0.2 + 0.35);
-      });
-    }
+    var freqs = type === 'work_done' ? [523.25, 659.25, 783.99] : [880, 1108.73];
+    var waveform = type === 'work_done' ? 'sine' : 'triangle';
+    var spacing = type === 'work_done' ? 0.25 : 0.2;
+    freqs.forEach(function(freq, i) {
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = waveform;
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0, now + i * spacing);
+      gain.gain.linearRampToValueAtTime(0.4, now + i * spacing + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * spacing + 0.6);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + i * spacing);
+      osc.stop(now + i * spacing + 0.7);
+    });
     setTimeout(function() { ctx.close(); }, 3000);
-  } catch(e) {}
+  } catch(e) { console.log('[SP] Sound error:', e); }
 }
 
 function showNotif(msg, type) {
@@ -293,89 +235,202 @@ function showNotif(msg, type) {
   }
 }
 
-// Helper: get numeric input value from Shiny's wrapper div
+// ============ TIMER CONTROLS ============
 function getPomoDuration() {
   var input = document.querySelector('#pomo_duration input[type="number"]');
   return input ? (parseInt(input.value) || 25) : 25;
 }
 
 function pomoToggle() {
+  console.log('[SP] pomoToggle called, running:', pomo.running);
   if (pomo.running) {
     pomo.pausedRemaining = Math.max(0, pomo.endTimestamp - Date.now());
     pomo.running = false;
     clearTimeout(pomo.tickId);
-    updateDisplay();
   } else {
     if (pomo.pausedRemaining === null) {
       pomo.workMin = getPomoDuration();
       pomo.durationSec = pomo.workMin * 60;
     }
-    pomo.endTimestamp = Date.now() + (pomo.pausedRemaining !== null ? pomo.pausedRemaining : pomo.durationSec * 1000);
+    var startMs = pomo.pausedRemaining !== null ? pomo.pausedRemaining : pomo.durationSec * 1000;
+    pomo.endTimestamp = Date.now() + startMs;
     pomo.pausedRemaining = null;
     pomo.running = true;
-    updateDisplay();
     pomoTick();
   }
+  updateDisplay();
 }
 
 function pomoReset() {
-  pomo.running = false; clearTimeout(pomo.tickId); pomo.mode = 'work';
+  console.log('[SP] pomoReset called');
+  pomo.running = false;
+  clearTimeout(pomo.tickId);
+  pomo.mode = 'work';
   pomo.workMin = getPomoDuration();
-  pomo.durationSec = pomo.workMin * 60; pomo.pausedRemaining = null;
+  pomo.durationSec = pomo.workMin * 60;
+  pomo.pausedRemaining = null;
   updateDisplay();
 }
 
 function pomoSkip() {
-  pomo.running = false; clearTimeout(pomo.tickId);
+  console.log('[SP] pomoSkip called');
+  pomo.running = false;
+  clearTimeout(pomo.tickId);
   if (pomo.mode === 'work') {
     pomo.sessions++;
-    if (window.Shiny && Shiny.setInputValue) Shiny.setInputValue('pomo_session_done', pomo.sessions, {priority: 'event'});
+    if (window.Shiny && Shiny.setInputValue) {
+      Shiny.setInputValue('pomo_session_done', pomo.sessions, {priority: 'event'});
+    }
     pomo.mode = pomo.sessions % 4 === 0 ? 'long' : 'short';
     pomo.durationSec = pomo.mode === 'long' ? pomo.longMin * 60 : pomo.shortMin * 60;
-  } else { pomo.mode = 'work'; pomo.durationSec = pomo.workMin * 60; }
-  pomo.pausedRemaining = null; updateDisplay();
-}
-
-function pomoUndo() { if (pomo.sessions > 0) { pomo.sessions--; updateDisplay(); } }
-
-// ============ AMBIENT MUSIC ============
-function toggleMusic(type) {
-  if (music.playing && music.type === type) { stopMusic(); return; }
-  stopMusic(); music.type = type; music.playing = true;
-  var ctx = new (window.AudioContext || window.webkitAudioContext)();
-  music.ctx = ctx;
-  var node = ctx.createScriptProcessor(4096, 1, 1);
-  var gain = ctx.createGain(); gain.gain.value = music.vol;
-  music.gain = gain; music.node = node;
-  var b1 = 0;
-  node.onaudioprocess = function(e) {
-    var out = e.outputBuffer.getChannelData(0);
-    for (var i = 0; i < 4096; i++) {
-      var w = Math.random() * 2 - 1;
-      if (type === 'white') out[i] = w;
-      else if (type === 'brown') { b1 += w*0.02; b1 -= b1*0.02; out[i] = b1*3.5; }
-      else { b1 = 0.99886*b1 + w*0.0555179; out[i] = b1*0.5; }
-      out[i] = Math.max(-1, Math.min(1, out[i]));
-    }
-  };
-  node.connect(gain); gain.connect(ctx.destination);
-}
-function stopMusic() {
-  if (music.node) { music.node.disconnect(); music.node = null; }
-  if (music.gain) { music.gain.disconnect(); music.gain = null; }
-  if (music.ctx) { try { music.ctx.close(); } catch(e) {} music.ctx = null; }
-  music.playing = false; music.type = null;
-}
-
-// ============ SHINY BINDINGS ============
-// NOTE: Auto-login handlers are INLINE in app.R HTML (immune to SW cache)
-
-$(document).on('shiny:connected', function() {
-  shinyDisconnected = false;
+  } else {
+    pomo.mode = 'work';
+    pomo.durationSec = pomo.workMin * 60;
+  }
+  pomo.pausedRemaining = null;
   updateDisplay();
-  updateOnlineStatus();
+}
 
-  // Listen on the actual input inside Shiny's wrapper
+function pomoUndo() {
+  if (pomo.sessions > 0) { pomo.sessions--; updateDisplay(); }
+}
+
+// ============ AMBIENT MUSIC (Web Audio API — procedural noise) ============
+function toggleMusic(type) {
+  console.log('[SP] toggleMusic:', type);
+  if (music.playing && music.type === type) { stopMusic(); return; }
+  stopMusic();
+  try {
+    music.type = type;
+    music.playing = true;
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    music.ctx = ctx;
+    // Resume context if suspended (Chrome autoplay policy)
+    if (ctx.state === 'suspended') { ctx.resume(); }
+    var bufSize = 4096;
+    var node = ctx.createScriptProcessor(bufSize, 1, 1);
+    var gain = ctx.createGain();
+    gain.gain.value = music.vol;
+    music.gain = gain;
+    music.node = node;
+    var b1 = 0;
+    node.onaudioprocess = function(e) {
+      var out = e.outputBuffer.getChannelData(0);
+      for (var i = 0; i < bufSize; i++) {
+        var w = Math.random() * 2 - 1;
+        if (type === 'white') { out[i] = w; }
+        else if (type === 'brown') { b1 += w * 0.02; b1 -= b1 * 0.02; out[i] = b1 * 3.5; }
+        else { b1 = 0.99886 * b1 + w * 0.0555179; out[i] = b1 * 0.5; } // pink
+        out[i] = Math.max(-1, Math.min(1, out[i]));
+      }
+    };
+    node.connect(gain);
+    gain.connect(ctx.destination);
+    console.log('[SP] Music playing:', type);
+  } catch(e) {
+    console.error('[SP] Music error:', e);
+    music.playing = false;
+  }
+}
+
+function stopMusic() {
+  try {
+    if (music.node) { music.node.disconnect(); music.node = null; }
+    if (music.gain) { music.gain.disconnect(); music.gain = null; }
+    if (music.ctx) { music.ctx.close(); music.ctx = null; }
+  } catch(e) {}
+  music.playing = false;
+  music.type = null;
+}
+
+// ============ JQUERY READY — all DOM-dependent setup ============
+$(function() {
+  console.log('[SP] pomodoro.js DOM ready — binding events');
+
+  // Nuke observer (MUST wait for document.body to exist)
+  try {
+    var nukeObserver = new MutationObserver(function(mutations) {
+      mutations.forEach(function(m) {
+        m.addedNodes.forEach(function(node) {
+          if (node.nodeType !== 1) return;
+          var id = node.id || '';
+          var cls = (typeof node.className === 'string') ? node.className : '';
+          if (id.indexOf('disconnected') !== -1 || id.indexOf('shiny-notification') !== -1 ||
+              cls.indexOf('shiny-notification') !== -1 || cls.indexOf('modal-backdrop') !== -1) {
+            node.remove();
+          }
+        });
+      });
+    });
+    nukeObserver.observe(document.body, { childList: true, subtree: true });
+    console.log('[SP] MutationObserver active');
+  } catch(e) { console.error('[SP] MutationObserver error:', e); }
+
+  // Shiny disconnect events
+  $(document).on('shiny:disconnected shiny:error', function(event) {
+    if (event.type === 'shiny:disconnected') shinyDisconnected = true;
+    nukeShinyDisconnectUI();
+    setTimeout(nukeShinyDisconnectUI, 100);
+    setTimeout(nukeShinyDisconnectUI, 500);
+    setTimeout(nukeShinyDisconnectUI, 2000);
+    var banner = document.getElementById('offline-banner');
+    if (banner) banner.style.display = 'flex';
+    loadCalendarFromCache();
+    if (navigator.onLine) setTimeout(function() { location.reload(); }, 4000);
+  });
+
+  // ====== POMODORO BUTTON HANDLERS ======
+  $(document).on('click', '#pomo_toggle', function(e) {
+    e.preventDefault(); e.stopPropagation();
+    console.log('[SP] pomo_toggle CLICKED');
+    pomoToggle();
+    return false;
+  });
+  $(document).on('click', '#pomo_reset', function(e) {
+    e.preventDefault(); e.stopPropagation();
+    pomoReset();
+    return false;
+  });
+  $(document).on('click', '#pomo_skip', function(e) {
+    e.preventDefault(); e.stopPropagation();
+    pomoSkip();
+    return false;
+  });
+  $(document).on('click', '#pomo_undo', function(e) {
+    e.preventDefault(); e.stopPropagation();
+    pomoUndo();
+    return false;
+  });
+
+  // ====== MUSIC BUTTON HANDLERS ======
+  $(document).on('click', '#music_white', function(e) {
+    e.preventDefault(); e.stopPropagation();
+    toggleMusic('white'); return false;
+  });
+  $(document).on('click', '#music_brown', function(e) {
+    e.preventDefault(); e.stopPropagation();
+    toggleMusic('brown'); return false;
+  });
+  $(document).on('click', '#music_pink', function(e) {
+    e.preventDefault(); e.stopPropagation();
+    toggleMusic('pink'); return false;
+  });
+  $(document).on('click', '#music_stop', function(e) {
+    e.preventDefault(); e.stopPropagation();
+    stopMusic(); return false;
+  });
+  $(document).on('input', '#music-volume', function() {
+    music.vol = this.value / 100;
+    if (music.gain) music.gain.gain.value = music.vol;
+  });
+
+  // ====== PWA INSTALL BUTTON ======
+  $(document).on('click', '#btn_install_app', function(e) {
+    e.preventDefault(); e.stopPropagation();
+    triggerPWAInstall(); return false;
+  });
+
+  // ====== DURATION CHANGE ======
   $(document).on('change', '#pomo_duration input', function() {
     if (!pomo.running && pomo.mode === 'work') {
       pomo.workMin = parseInt(this.value) || 25;
@@ -384,45 +439,34 @@ $(document).on('shiny:connected', function() {
       updateDisplay();
     }
   });
-});
 
-$(document).on('click', '#pomo_toggle', function(e) { e.preventDefault(); pomoToggle(); });
-$(document).on('click', '#pomo_reset', function(e) { e.preventDefault(); pomoReset(); });
-$(document).on('click', '#pomo_skip', function(e) { e.preventDefault(); pomoSkip(); });
-$(document).on('click', '#pomo_undo', function(e) { e.preventDefault(); pomoUndo(); });
-$(document).on('click', '#btn_install_app', function(e) { e.preventDefault(); triggerPWAInstall(); });
-$(document).on('click', '#music_white', function(e) { e.preventDefault(); toggleMusic('white'); });
-$(document).on('click', '#music_brown', function(e) { e.preventDefault(); toggleMusic('brown'); });
-$(document).on('click', '#music_pink', function(e) { e.preventDefault(); toggleMusic('pink'); });
-$(document).on('click', '#music_stop', function(e) { e.preventDefault(); stopMusic(); });
-$(document).on('input', '#music-volume', function() {
-  music.vol = this.value / 100;
-  if (music.gain) music.gain.gain.value = music.vol;
+  // ====== SHINY CONNECTED ======
+  $(document).on('shiny:connected', function() {
+    console.log('[SP] Shiny connected');
+    shinyDisconnected = false;
+    updateDisplay();
+    updateOnlineStatus();
+  });
+
+  console.log('[SP] All event handlers registered successfully');
 });
 
 // ============ CALENDAR DRAG-TO-MOVE ============
-// Allows vertical dragging of .cal-event divs to change time
-(function() {
+$(function() {
   var dragState = null;
-  var HOUR_H = 50; // Must match CSS and R
+  var HOUR_H = 50;
 
   $(document).on('mousedown touchstart', '.cal-event', function(e) {
-    // Only allow drag with left mouse button or touch
     if (e.type === 'mousedown' && e.which !== 1) return;
-    var el = this;
-    var rect = el.getBoundingClientRect();
-    var colRect = el.parentElement.getBoundingClientRect();
     var clientY = e.type === 'touchstart' ? e.originalEvent.touches[0].clientY : e.clientY;
-
     dragState = {
-      el: el,
+      el: this,
       startY: clientY,
-      origTop: parseInt(el.style.top) || 0,
-      colTop: colRect.top + window.scrollY,
+      origTop: parseInt(this.style.top) || 0,
       moved: false
     };
-    el.style.zIndex = '10';
-    el.style.opacity = '0.8';
+    this.style.zIndex = '10';
+    this.style.opacity = '0.8';
     e.preventDefault();
   });
 
@@ -431,7 +475,6 @@ $(document).on('input', '#music-volume', function() {
     var clientY = e.type === 'touchmove' ? e.originalEvent.touches[0].clientY : e.clientY;
     var dy = clientY - dragState.startY;
     if (Math.abs(dy) > 5) dragState.moved = true;
-    // Snap to 15-min increments (HOUR_H/4)
     var snap = HOUR_H / 4;
     var newTop = Math.max(0, Math.round((dragState.origTop + dy) / snap) * snap);
     dragState.el.style.top = newTop + 'px';
@@ -443,46 +486,37 @@ $(document).on('input', '#music-volume', function() {
     dragState.el.style.zIndex = '';
     dragState.el.style.opacity = '';
     if (dragState.moved) {
-      // Calculate new time from pixel position
       var newTop = parseInt(dragState.el.style.top) || 0;
-      var newHour = newTop / HOUR_H; // hours from CAL_FIRST_HOUR (0)
+      var newHour = newTop / HOUR_H;
       var h = Math.floor(newHour);
       var m = Math.round((newHour - h) * 60 / 15) * 15;
       if (m >= 60) { h++; m = 0; }
-      var newStart = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
-
-      // Get event title from the element
+      var newStart = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
       var nameEl = dragState.el.querySelector('.cal-ev-name');
       var timeEl = dragState.el.querySelector('.cal-ev-time');
       var title = nameEl ? nameEl.textContent : '';
       var oldTime = timeEl ? timeEl.textContent : '';
-
-      // Calculate duration from old time display (e.g. "08:00 – 10:00")
       var parts = oldTime.split('–');
-      var oldStartParts = (parts[0] || '').trim().split(':');
-      var oldEndParts = (parts[1] || '').trim().split(':');
+      var oldS = (parts[0] || '').trim().split(':');
+      var oldE = (parts[1] || '').trim().split(':');
       var durMin = 60;
-      if (oldStartParts.length === 2 && oldEndParts.length === 2) {
-        durMin = (parseInt(oldEndParts[0])*60 + parseInt(oldEndParts[1])) -
-                 (parseInt(oldStartParts[0])*60 + parseInt(oldStartParts[1]));
+      if (oldS.length === 2 && oldE.length === 2) {
+        durMin = (parseInt(oldE[0]) * 60 + parseInt(oldE[1])) - (parseInt(oldS[0]) * 60 + parseInt(oldS[1]));
         if (durMin <= 0) durMin = 60;
       }
       var endMin = h * 60 + m + durMin;
-      var endH = Math.floor(endMin / 60);
-      var endM = endMin % 60;
-      var newEnd = String(endH).padStart(2,'0') + ':' + String(endM).padStart(2,'0');
-
-      // Update display
+      var newEnd = String(Math.floor(endMin / 60)).padStart(2, '0') + ':' + String(endMin % 60).padStart(2, '0');
       if (timeEl) timeEl.textContent = newStart + ' – ' + newEnd;
-
-      // Send to Shiny
       if (window.Shiny && Shiny.setInputValue) {
         Shiny.setInputValue('cal_drag_move', {
-          title: title, new_start: newStart, new_end: newEnd,
-          old_time: oldTime.trim()
+          title: title, new_start: newStart, new_end: newEnd, old_time: oldTime.trim()
         }, {priority: 'event'});
       }
     }
     dragState = null;
   });
-})();
+});
+
+} catch(e) {
+  console.error('[SP] FATAL ERROR in pomodoro.js:', e);
+}
