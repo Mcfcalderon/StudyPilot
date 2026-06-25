@@ -1,17 +1,29 @@
-# Secrets
+# Secrets / credentials
 .Renviron
+app_env
 .env
 
 # R artifacts
 .Rhistory
-.Rdata
 .RData
-*.Rproj.user/
+.Rdata
+.Rproj.user/
 
-# Quarto output
+# Deploy config (machine-specific)
+rsconnect/
+
+# Build outputs
 StudyPilot_Documentacion_files/
 StudyPilot_Documentacion.html
+StudyPilot_Documentacion.docx
+StudyPilot_Documentacion.log
+StudyPilot_Documentacion.tex
 
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
+~$*
+
+# Old monolith backup
+app_old.R

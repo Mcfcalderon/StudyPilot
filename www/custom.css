@@ -516,3 +516,135 @@ html, body {
   body { padding-top: env(safe-area-inset-top, 0); }
   .navbar { padding-top: env(safe-area-inset-top, 0) !important; }
 }
+
+
+/* ============================================================
+   MEJORAS ADICIONALES (sobre CSS original)
+   ============================================================ */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap");
+body { font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important; }
+
+/* Subtle card animations */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.card, .bslib-card { animation: fadeInUp 0.35s ease-out both; }
+.card:nth-child(2) { animation-delay: 0.05s; }
+.card:nth-child(3) { animation-delay: 0.1s; }
+.card:nth-child(4) { animation-delay: 0.15s; }
+
+/* Chat FAB (updated for new ui_chat.R structure) */
+.chat-float-btn {
+  position: fixed !important;
+  bottom: 25px !important;
+  right: 25px !important;
+  width: 56px; height: 56px;
+  background: linear-gradient(135deg, #2563eb, #7c3aed) !important;
+  border-radius: 50% !important;
+  color: white !important;
+  font-size: 1.3rem !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: 0 4px 15px rgba(37,99,235,0.35) !important;
+  cursor: pointer !important;
+  z-index: 99999 !important;
+  transition: transform 0.2s, box-shadow 0.2s !important;
+  border: none !important;
+}
+.chat-float-btn:hover {
+  transform: scale(1.08) !important;
+  box-shadow: 0 6px 25px rgba(37,99,235,0.5) !important;
+}
+.chat-float-panel {
+  display: none;
+  position: fixed !important;
+  bottom: 90px !important;
+  right: 25px !important;
+  width: 370px;
+  max-height: 500px;
+  background: rgba(255,255,255,0.97) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 16px 60px rgba(0,0,0,0.15) !important;
+  z-index: 100000 !important;
+  flex-direction: column;
+  border: 1px solid #e2e8f0 !important;
+  overflow: hidden;
+}
+.chat-float-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  color: #fff;
+}
+.chat-float-close { cursor: pointer; font-size: 1.2rem; opacity: 0.8; }
+.chat-float-close:hover { opacity: 1; }
+.chat-float-body {
+  max-height: 340px; overflow-y: auto;
+  padding: 12px 14px; font-size: 0.85rem; word-wrap: break-word;
+}
+.chat-float-input { padding: 10px 14px; border-top: 1px solid #f1f5f9; }
+.chat-float-input .form-group { margin-bottom: 0; }
+
+/* Scrollbar refinement */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(100,100,200,0.3); border-radius: 3px; }
+
+@media (max-width: 576px) {
+  .chat-float-panel { width: calc(100vw - 32px); right: 16px !important; bottom: 84px !important; }
+  .chat-float-btn { width: 50px; height: 50px; font-size: 1.1rem; bottom: 16px !important; right: 16px !important; }
+}
+
+
+/* ============================================================
+   MEJORAS ADICIONALES (sobre CSS original)
+   ============================================================ */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap");
+body { font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important; }
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.card, .bslib-card { animation: fadeInUp 0.35s ease-out both; }
+.card:nth-child(2) { animation-delay: 0.05s; }
+.card:nth-child(3) { animation-delay: 0.1s; }
+
+.chat-float-btn {
+  position: fixed !important; bottom: 25px !important; right: 25px !important;
+  width: 56px; height: 56px; background: linear-gradient(135deg, #2563eb, #7c3aed) !important;
+  border-radius: 50% !important; color: white !important; font-size: 1.3rem !important;
+  display: flex !important; align-items: center !important; justify-content: center !important;
+  box-shadow: 0 4px 15px rgba(37,99,235,0.35) !important; cursor: pointer !important;
+  z-index: 99999 !important; transition: transform 0.2s, box-shadow 0.2s !important; border: none !important;
+}
+.chat-float-btn:hover { transform: scale(1.08) !important; box-shadow: 0 6px 25px rgba(37,99,235,0.5) !important; }
+.chat-float-panel {
+  display: none; position: fixed !important; bottom: 90px !important; right: 25px !important;
+  width: 370px; max-height: 500px; background: rgba(255,255,255,0.97) !important;
+  border-radius: 20px !important; box-shadow: 0 16px 60px rgba(0,0,0,0.15) !important;
+  z-index: 100000 !important; flex-direction: column; border: 1px solid #e2e8f0 !important; overflow: hidden;
+}
+.chat-float-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 18px; background: linear-gradient(135deg, #2563eb, #7c3aed); color: #fff;
+}
+.chat-float-close { cursor: pointer; font-size: 1.2rem; opacity: 0.8; }
+.chat-float-close:hover { opacity: 1; }
+.chat-float-body { max-height: 340px; overflow-y: auto; padding: 12px 14px; font-size: 0.85rem; }
+.chat-float-input { padding: 10px 14px; border-top: 1px solid #f1f5f9; }
+.chat-float-input .form-group { margin-bottom: 0; }
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(100,100,200,0.3); border-radius: 3px; }
+
+@media (max-width: 576px) {
+  .chat-float-panel { width: calc(100vw - 32px); right: 16px !important; bottom: 84px !important; }
+  .chat-float-btn { width: 50px; height: 50px; bottom: 16px !important; right: 16px !important; }
+}
+

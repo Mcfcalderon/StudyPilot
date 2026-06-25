@@ -314,3 +314,12 @@ list(
   )
 )
 )
+
+# ============ STUDY GUIDE RETRIEVER ============
+get_study_guide <- function(course_id, exam_code) {
+  # Returns a markdown guide for the given course/exam, or NULL if none exists
+  guide_key <- paste0(course_id, "_", exam_code)
+  guides <- get0(".study_guides_cache", envir = globalenv())
+  if (!is.null(guides) && guide_key %in% names(guides)) return(guides[[guide_key]])
+  NULL
+}

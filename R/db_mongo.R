@@ -2,11 +2,7 @@
 # All data functions require user_id for per-user isolation
 library(mongolite)
 
-MONGO_URI <- Sys.getenv("MONGODB_URI")
-if (nchar(MONGO_URI) == 0) {
-  warning("[StudyPilot] MONGODB_URI not set. DB functions will fail. See .Renviron.example")
-  MONGO_URI <- ""
-}
+# URI is read fresh via Sys.getenv("MONGODB_URI") at each connection
 
 # Helper: get a collection connection with reuse (returns NULL if not initialized)
 .mongo_cache <- new.env(parent = emptyenv())
@@ -20,7 +16,7 @@ mongo_col <- function(collection) {
     alive <- tryCatch({ conn$count(); TRUE }, error = function(e) FALSE)
     if (alive) return(conn)
   }
-  conn <- mongolite::mongo(collection = collection, url = MONGO_URI)
+  conn <- mongolite::mongo(collection = collection, url = Sys.getenv("MONGODB_URI"))
   assign(collection, conn, envir = .mongo_cache)
   conn
 }
@@ -359,3 +355,24 @@ mg_cal_hidden_set <- function(uid, hidden_keys) {
     col$insert(df)
   }
 }
+
+# ============ AI BLOCKS (per-user: bloques de estudio generados por Smart Scheduler) ============
+mg_ai_blocks_get <- function(uid) {
+  col <- mongo_col("ai_blocks")
+  if (is.null(col)) return(data.frame())
+  result <- tryCatch(col$find(uf(uid)), error = function(e) data.frame())
+  if (nrow(result) > 0 && "user_id" %in% names(result)) result$user_id <- NULL
+  if (nrow(result) > 0 && "_id" %in% names(result)) result[["_id"]] <- NULL
+  result
+}
+
+mg_ai_blocks_set <- function(uid, ai_blocks_df) {
+  col <- mongo_col("ai_blocks")
+  if (is.null(col)) return(invisible(NULL))
+  col$remove(uf(uid))
+  if (!is.null(ai_blocks_df) && is.data.frame(ai_blocks_df) && nrow(ai_blocks_df) > 0) {
+    ai_blocks_df$user_id <- uid
+    col$insert(ai_blocks_df)
+  }
+}
+

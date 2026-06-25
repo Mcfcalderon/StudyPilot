@@ -19,10 +19,33 @@ if (requireNamespace("blastula", quietly = TRUE)) library(blastula)
 assign(".gemini_key_idx", 1L, envir = globalenv())
 
 get_gemini <- function() {
-  env_key <- Sys.getenv("GEMINI_API_KEY")
-  idx <- get0(".gemini_key_idx", envir = globalenv(), ifnotfound = 1L)
-  key <- if (nchar(env_key) > 0) env_key else .gemini_keys[idx]
-  # Set env var so ellmer picks it up automatically (avoids credentials type issues)
+  # 1. Try env var (set by app.R parser)
+  key <- trimws(Sys.getenv("GEMINI_API_KEY"))
+  
+  # 2. Fallback: read directly from app_env file
+  if (nchar(key) == 0 || !startsWith(key, "AIza")) {
+    for (ef in c("app_env", ".Renviron")) {
+      if (file.exists(ef)) {
+        for (ln in readLines(ef, warn = FALSE)) {
+          if (startsWith(trimws(ln), "GEMINI_API_KEY=")) {
+            key <- trimws(sub("^[^=]+=", "", ln))
+            Sys.setenv(GEMINI_API_KEY = key)
+            message("[StudyPilot] Loaded GEMINI_API_KEY from file: ", nchar(key), " chars")
+            break
+          }
+        }
+        if (nchar(key) > 0 && startsWith(key, "AIza")) break
+      }
+    }
+  }
+  
+  # 3. Last resort: use rotated key from GEMINI_KEYS
+  if (nchar(key) == 0 || !startsWith(key, "AIza")) {
+    idx <- get0(".gemini_key_idx", envir = globalenv(), ifnotfound = 1L)
+    key <- .gemini_keys[idx]
+  }
+  
+  message("[StudyPilot] Gemini key: ", substr(key, 1, 8), "*** (", nchar(key), " chars)")
   Sys.setenv(GOOGLE_API_KEY = key)
   chat_google_gemini(model = "gemini-2.5-flash")
 }
