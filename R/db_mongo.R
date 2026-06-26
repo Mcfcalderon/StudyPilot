@@ -256,6 +256,18 @@ mg_syllabus_delete <- function(uid, course_id, filename) {
 }
 
 # ============ POMODORO SESSIONS ============
+
+mg_pomo_get_today <- function(uid) {
+  p <- mongo_col("pomo_sessions")
+  if (is.null(p)) return(data.frame())
+  today_str <- as.character(Sys.Date())
+  tryCatch({
+    all_sessions <- p$find(uf(uid))
+    if (nrow(all_sessions) == 0) return(data.frame())
+    all_sessions[grepl(today_str, all_sessions$completed_at), ]
+  }, error = function(e) data.frame())
+}
+
 mg_pomo_add <- function(uid, cid, duration) {
   p <- mongo_col("pomo_sessions")
   if (is.null(p)) return(invisible(NULL))

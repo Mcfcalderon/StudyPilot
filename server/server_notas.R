@@ -46,9 +46,7 @@ output$grades_panels <- renderUI({
     }
 
     avg <- calc_avg_fast(c_info$id, cached)
-    col <- if (avg$partial >= 13) "success"
-           else if (avg$partial >= 10.5) "warning"
-           else "danger"
+    col <- if (avg$pct_graded == 0) "secondary" else if (avg$partial >= 13) "success" else if (avg$partial >= 10.5) "warning" else "danger"
 
     # Build grade input rows
     grade_inputs <- lapply(seq_len(nrow(evals)), function(j) {
@@ -73,7 +71,7 @@ output$grades_panels <- renderUI({
       card_header(class = "d-flex justify-content-between",
         tags$span(c_info$short, tags$small(class = "text-muted ms-2", c_info$id)),
         tags$span(class = paste0("badge bg-", col),
-          paste0(avg$partial, " / ", avg$pct_graded, "% evaluado"))
+          if (avg$pct_graded == 0) "Sin evaluar" else paste0(avg$partial, " / ", avg$pct_graded, "% evaluado"))
       ),
       card_body(
         tags$div(class = "small text-muted mb-2", paste0("Formula: ", c_info$formula)),

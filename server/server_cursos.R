@@ -101,6 +101,12 @@ observeEvent(input$add_course_btn, {
     showNotification("Completa codigo y nombre del curso", type = "error")
     return()
   }
+  # 3.3: Check for duplicate course code
+  existing <- tryCatch(mg_custom_courses_get(uid()), error = function(e) data.frame())
+  if (nrow(existing) > 0 && id %in% existing$id) {
+    showNotification(paste0("El curso \"", id, "\" ya existe. Usa un codigo diferente."), type = "error")
+    return()
+  }
   tryCatch({
     mg_custom_course_add(uid(), id, name, short, input$new_course_credits,
       input$new_course_prof, "", as.integer(input$new_course_day), input$new_course_color)

@@ -520,3 +520,11 @@ $(function() {
 } catch(e) {
   console.error('[SP] FATAL ERROR in pomodoro.js:', e);
 }
+
+// Restore Pomodoro sessions from server (MongoDB)
+Shiny.addCustomMessageHandler("pomo_restore", function(data) {
+  var el_s = document.getElementById("pomo-sessions");
+  var el_t = document.getElementById("pomo-total");
+  if (el_s) el_s.textContent = data.sessions;
+  if (el_t) el_t.textContent = data.total_min + " min";
+});

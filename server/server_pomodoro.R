@@ -24,3 +24,19 @@ observeEvent(input$exam_pomo, {
   }
   bslib::nav_select("main_nav", selected = "\U0001F4D6 Estudio")
 })
+
+# ---- Load today's Pomodoro sessions from MongoDB ----
+observe({
+  req(uid())
+  tryCatch({
+    today_sessions <- mg_pomo_get_today(uid())
+    n_sessions <- nrow(today_sessions)
+    total_min <- if (n_sessions > 0) sum(today_sessions$duration_min, na.rm = TRUE) else 0
+    # Send to JS to update the counters
+    session$sendCustomMessage("pomo_restore", list(
+      sessions = n_sessions,
+      total_min = total_min
+    ))
+    message("[StudyPilot] Pomo restored: ", n_sessions, " sessions, ", total_min, " min today")
+  }, error = function(e) message("[StudyPilot] Pomo restore error: ", e$message))
+}) |> bindEvent(uid(), once = TRUE)
