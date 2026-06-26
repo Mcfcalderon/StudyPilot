@@ -160,7 +160,7 @@ output$visual_calendar <- renderUI({
           if (is.na(sh) || is.na(eh)) next
 
           top_px    <- (sh - first_hour) * HOUR_H
-          height_px <- max((eh - sh) * HOUR_H - 2, 20)
+          height_px <- max((eh - sh) * HOUR_H - 3, 12)
           start_str <- substr(ev$start, 1, 16)
           end_str   <- substr(ev$end, 1, 16)
           time_label <- paste0(substr(start_str, 12, 16), " - ", substr(end_str, 12, 16))
@@ -212,9 +212,31 @@ output$visual_calendar <- renderUI({
         }
       }
 
+      # Current time indicator (only for today)
+      now_indicator <- NULL
+      if (dd == today) {
+        now_h <- as.numeric(format(Sys.time(), "%H")) + as.numeric(format(Sys.time(), "%M")) / 60
+        now_top <- (now_h - first_hour) * HOUR_H
+        if (now_top > 0 && now_top < total_hours * HOUR_H) {
+          now_indicator <- tags$div(class = "cal-now-line",
+            style = paste0("top:", round(now_top), "px;"))
+        }
+      }
+
+      # Current time indicator (only for today)
+      now_indicator <- NULL
+      if (dd == today) {
+        now_h <- as.numeric(format(Sys.time(), "%H")) + as.numeric(format(Sys.time(), "%M")) / 60
+        now_top <- (now_h - first_hour) * HOUR_H
+        if (now_top > 0 && now_top < total_hours * HOUR_H) {
+          now_indicator <- tags$div(class = "cal-now-line",
+            style = paste0("top:", round(now_top), "px;"))
+        }
+      }
+
       tags$div(class = "cal-day-col",
         style = paste0("height:", total_hours * HOUR_H, "px;"),
-        hour_lines, event_divs
+        hour_lines, event_divs, now_indicator
       )
     })
 
