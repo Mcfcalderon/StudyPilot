@@ -626,13 +626,18 @@ aplicar_colores_cursos <- function(df) {
 pdf_schedule_to_events <- function(schedule_data, week_start, colors_map = NULL) {
   if (is.null(schedule_data) || nrow(schedule_data) == 0) return(estandarizar_evento(NULL))
 
-  day_map <- c("Domingo" = 0, "Lunes" = 1, "Martes" = 2, "Miércoles" = 3,
-               "Jueves" = 4, "Viernes" = 5, "Sábado" = 6)
+  day_map <- c("Domingo" = 0, "Lunes" = 1, "Martes" = 2, "Mi\u00e9rcoles" = 3, "Miercoles" = 3,
+               "Jueves" = 4, "Viernes" = 5, "S\u00e1bado" = 6, "Sabado" = 6)
 
   events <- do.call(rbind, lapply(seq_len(nrow(schedule_data)), function(i) {
     s <- schedule_data[i, ]
     dia_name <- s$dia
-    day_offset <- day_map[dia_name]
+    dia_name <- iconv(dia_name, to = "ASCII//TRANSLIT")
+    dia_name <- gsub("[^A-Za-z]", "", trimws(dia_name))
+    # Match against normalized day names
+    norm_map <- c("Domingo" = 0, "Lunes" = 1, "Martes" = 2, "Miercoles" = 3,
+                  "Jueves" = 4, "Viernes" = 5, "Sabado" = 6)
+    day_offset <- norm_map[dia_name]
     if (is.na(day_offset)) return(NULL)
 
     # week_start is the Sunday of the week

@@ -625,6 +625,9 @@ output$schedule_grid <- renderUI({
   rv$refresh
   sched <- tryCatch(mg_schedule_get(uid()), error = function(e) data.frame())
   if (is.null(sched) || !is.data.frame(sched) || nrow(sched) == 0) return(NULL)
+  # Normalize day names (strip accents for consistent matching)
+  sched$dia <- iconv(sched$dia, to = "ASCII//TRANSLIT")
+  sched$dia <- gsub("[^A-Za-z]", "", sched$dia)
 
   days <- c("Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado")
   colors <- c("#3b82f6", "#22c55e", "#8b5cf6", "#f97316", "#ec4899", "#06b6d4", "#eab308", "#10b981")
