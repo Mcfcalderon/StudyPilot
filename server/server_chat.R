@@ -44,10 +44,33 @@ build_user_context <- function() {
       paste0("CURSO: ", c_info$name, " (codigo: ", cid, ")"),
       paste0("  Creditos: ", c_info$credits,
              " | Profesor: ", if (nchar(c_info$professor) > 0) c_info$professor else "no registrado"),
-      if (!is.null(c_info$formula) && nchar(c_info$formula) > 0) paste0("  Formula de evaluacion: ", c_info$formula) else NULL,
-      paste0("  Promedio parcial: ",
-             if (is.null(avg) || avg$pct_graded == 0) "sin notas registradas"
-             else paste0(avg$partial, "/20 (", avg$pct_graded, "% del curso evaluado)")))
+      if (!is.null(c_info$formula) && nchar(c_info$formula) > 0) paste0("  Formula de evaluacion: ", c_info$formula) else NULL)
+
+    if (!is.null(avg) && avg$pct_graded > 0) {
+      ctx <- c(ctx,
+        paste0("  Puntos acumulados (asegurados de 20): ", avg$earned, "/20"),
+        paste0("  Promedio parcial (sobre lo evaluado): ", avg$partial,
+               "/20 | ", avg$pct_graded, "% del curso evaluado"))
+      # Nota necesaria por evaluacion restante para aprobar (umbral 10.5)
+      if (avg$remaining > 0) {
+        rem_names <- if (is.data.frame(avg$remaining_evals) && nrow(avg$remaining_evals) > 0)
+          paste0(avg$remaining_evals$name, " (", avg$remaining_evals$weight, "%)", collapse = ", ")
+          else paste0(avg$remaining, "% restante")
+        if (avg$needed <= 0) {
+          ctx <- c(ctx, paste0("  Ya aseguro la aprobacion: necesita 0 en lo restante (", rem_names, ")"))
+        } else if (avg$needed <= 20) {
+          ctx <- c(ctx, paste0("  Para aprobar necesita ", avg$needed,
+                               "/20 en cada evaluacion restante: ", rem_names))
+        } else {
+          ctx <- c(ctx, paste0("  Aprobar es muy dificil: necesitaria ", avg$needed,
+                               "/20 (>20) en cada evaluacion restante: ", rem_names))
+        }
+      } else {
+        ctx <- c(ctx, "  Curso completamente evaluado.")
+      }
+    } else {
+      ctx <- c(ctx, "  Sin notas registradas aun.")
+    }
 
     # Evaluaciones del curso con sus notas (replica calc_avg_fast)
     evals <- all_acts[all_acts$course_id == cid, ]
@@ -142,6 +165,11 @@ observeEvent(input$chat_send, {
       "dato preciso (ej: 'En tu Examen Parcial de Data Analytics tienes 14/20').\n",
       "- Si pregunta por un curso, identificalo aunque use abreviaturas (ej: 'Data' = Data Analytics, ",
       "'Etica' = Etica y Tecnologia, 'PCO' = Planificacion y Control de Operaciones).\n",
+      "- Distingue dos metricas: 'Puntos acumulados /20' son los puntos REALES ya asegurados del ",
+      "curso (suma ponderada de notas obtenidas); 'Promedio parcial' es el promedio solo sobre lo ya ",
+      "evaluado. Si preguntan 'cuantos puntos llevo' o 'como voy', usa los Puntos acumulados.\n",
+      "- Si preguntan que nota necesitan para aprobar, usa el dato 'Para aprobar necesita X/20 en cada ",
+      "evaluacion restante' y nombra las evaluaciones pendientes.\n",
       "- Si el dato no esta registrado, dilo claramente (ej: 'aun no tienes nota en esa evaluacion').\n",
       "- Si es una pregunta conceptual o de estudio, responde como tutor con definicion + ejemplo.\n",
       "- No inventes notas ni datos que no aparezcan abajo.\n\n",
