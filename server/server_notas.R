@@ -85,24 +85,34 @@ output$grades_panels <- renderUI({
             tags$tbody(grade_inputs))
         },
         div(class = "alert alert-light py-2 mt-2",
-          div(class = "d-flex justify-content-between align-items-center",
+          div(class = "d-flex justify-content-between align-items-center flex-wrap",
             div(
-              tags$small("Promedio parcial:"),
-              tags$span(class = paste0("fs-4 fw-bold text-", col), avg$partial)
+              tags$small("Puntos acumulados:"),
+              tags$span(class = paste0("fs-4 fw-bold text-", col),
+                paste0(avg$earned, " / 20")),
+              tags$small(class = "text-muted ms-2",
+                paste0("(", avg$pct_graded, "% evaluado · parcial ", avg$partial, ")"))
             ),
             div(class = "text-end small",
-              if (avg$remaining > 0 && !is.na(avg$needed))
-                tags$span(
-                  if (avg$needed <= 20) {
-                    paste0("Necesitas ", avg$needed, " en el ",
-                           avg$remaining, "% restante para aprobar")
-                  } else {
-                    tags$span(class = "text-danger fw-bold",
-                      paste0("Necesitas ", avg$needed, " - dificil"))
-                  }
-                )
-              else if (avg$pct_graded == 0)
+              if (avg$pct_graded == 0)
                 tags$span(class = "text-muted", "Sin notas registradas aun")
+              else if (avg$remaining <= 0)
+                tags$span(class = "text-success fw-bold", "Curso completamente evaluado")
+              else if (avg$needed <= 0)
+                tags$span(class = "text-success fw-bold",
+                  "✅ Ya aseguraste la aprobacion (necesitas 0 en lo restante)")
+              else if (avg$needed <= 20)
+                tagList(
+                  tags$span(class = "fw-bold",
+                    paste0("Necesitas ", avg$needed, "/20 en cada evaluacion restante:")),
+                  tags$div(class = "text-muted",
+                    if (is.data.frame(avg$remaining_evals) && nrow(avg$remaining_evals) > 0)
+                      paste0(avg$remaining_evals$name, " (", avg$remaining_evals$weight, "%)", collapse = ", ")
+                    else paste0(avg$remaining, "% restante"))
+                )
+              else
+                tags$span(class = "text-danger fw-bold",
+                  paste0("Necesitas ", avg$needed, "/20 en cada restante - muy dificil aprobar"))
             )
           )
         ),
@@ -214,7 +224,7 @@ output$download_grades_pdf <- downloadHandler(
       avg <- calc_avg_fast(c_info$id, cached)
       cr <- c_info$credits
       if (avg$partial > 0) { sw <- sw + cr; sn <- sn + avg$partial * cr }
-      estado <- if (avg$pct_graded == 0) "Sin evaluar" else paste0(avg$partial, " / 20 (", avg$pct_graded, "% evaluado)")
+      estado <- if (avg$pct_graded == 0) "Sin evaluar" else paste0(avg$earned, " / 20 pts (", avg$pct_graded, "% evaluado, parcial ", avg$partial, ")")
       color <- if (avg$pct_graded == 0) "#94a3b8" else if (avg$partial >= 13) "#16a34a" else if (avg$partial >= 10.5) "#d97706" else "#dc2626"
       rows_html <- paste0(rows_html,
         "<tr><td style=\"padding:8px;border-bottom:1px solid #eee;\"><b>", c_info$name, "</b><br><span style=\"color:#888;font-size:0.85em;\">", c_info$id, " &middot; ", cr, " cr</span></td>",

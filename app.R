@@ -80,9 +80,10 @@ server <- function(input, output, session) {
   })
 
   calc_avg_fast <- function(cid, cached) {
+    empty <- list(partial = 0, pct_graded = 0, earned = 0, needed = NA,
+                  remaining = 100, remaining_evals = data.frame())
     g <- cached[cached$course_id == cid, ]
-    if (nrow(g) == 0) return(list(partial = 0, pct_graded = 0, earned = 0, needed = NA, remaining = 100))
-    # Get activities with same filter as grades_panels UI
+    if (nrow(g) == 0) return(empty)
     evals_c <- tryCatch({
       a <- mg_activities_all(uid())
       if (nrow(a) == 0) return(data.frame())
@@ -92,8 +93,7 @@ server <- function(input, output, session) {
       if (nrow(e) > 0) e <- e[order(e$date), ]
       e
     }, error = function(err) data.frame())
-    if (nrow(evals_c) == 0) return(list(partial = 0, pct_graded = 0, earned = 0, needed = NA, remaining = 100))
-    # Generate same E1,E2... codes as UI and save handler
+    if (nrow(evals_c) == 0) return(empty)
     for (j in seq_len(nrow(evals_c))) {
       if (!"code" %in% names(evals_c) || is.null(evals_c$code[j]) || is.na(evals_c$code[j]) || nchar(as.character(evals_c$code[j])) == 0) {
         if (!"code" %in% names(evals_c)) evals_c$code <- ""
@@ -101,18 +101,24 @@ server <- function(input, output, session) {
       }
     }
     total_w <- sum(evals_c$weight, na.rm = TRUE)
-    if (total_w == 0) return(list(partial = 0, pct_graded = 0, earned = 0, needed = NA, remaining = 100))
-    # Merge grades by code
-    merged <- merge(evals_c[, c("code", "weight")], g[, c("code", "grade")], by = "code", all.x = TRUE)
+    if (total_w == 0) return(empty)
+    # Merge grades by code (keep name for remaining list)
+    name_col <- if ("name" %in% names(evals_c)) "name" else "code"
+    merged <- merge(evals_c[, c("code", "weight", name_col)], g[, c("code", "grade")], by = "code", all.x = TRUE)
     graded <- merged[!is.na(merged$grade), ]
-    if (nrow(graded) == 0) return(list(partial = 0, pct_graded = 0, earned = 0, needed = NA, remaining = 100))
-    earned <- sum(graded$grade * graded$weight / 100, na.rm = TRUE)
-    pct <- sum(graded$weight, na.rm = TRUE)
+    # Puntos absolutos de 20 ya asegurados
+    earned <- if (nrow(graded) > 0) sum(graded$grade * graded$weight / 100, na.rm = TRUE) else 0
+    pct <- if (nrow(graded) > 0) sum(graded$weight, na.rm = TRUE) else 0
     partial <- if (pct > 0) earned / (pct / 100) else 0
     remaining <- total_w - pct
+    # Evaluaciones restantes (sin nota)
+    rem <- merged[is.na(merged$grade), c(name_col, "weight")]
+    if (nrow(rem) > 0) names(rem) <- c("name", "weight")
+    # Nota constante necesaria en CADA evaluacion restante para aprobar (umbral 10.5)
     needed <- if (remaining > 0) (10.5 - earned) / (remaining / 100) else 0
-    list(partial = round(partial, 2), pct_graded = round(pct), earned = round(earned, 2),
-         needed = round(max(0, needed), 2), remaining = round(remaining))
+    list(partial = round(partial, 2), pct_graded = round(pct),
+         earned = round(earned, 2), needed = round(max(0, needed), 2),
+         remaining = round(remaining), remaining_evals = rem)
   }
 
   # ---- Server modules (local=TRUE shares reactives) ----
