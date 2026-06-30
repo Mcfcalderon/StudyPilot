@@ -3,6 +3,8 @@
 ui_dashboard <- function() {
   nav_panel(
     title = "\U0001F4CA Inicio",
+    # 4.3: Resumen compacto "Esta Semana"
+    uiOutput("esta_semana_card"),
     tags$h5(class = "fw-bold mb-2 mt-2", "\U0001F4CD Progreso del Ciclo"),
     uiOutput("week_timeline"),
     # KPI cards (responsive flex grid)

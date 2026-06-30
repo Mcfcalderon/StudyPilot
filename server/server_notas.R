@@ -198,3 +198,45 @@ output$overall_credits_label <- renderUI({
     else "Agrega cursos para ver tu promedio"
   )
 })
+
+# ====================================================================
+# 4.4: Export grades report as HTML (browser prints to PDF)
+# ====================================================================
+output$download_grades_pdf <- downloadHandler(
+  filename = function() paste0("StudyPilot_Notas_", format(Sys.Date(), "%Y%m%d"), ".html"),
+  content = function(file) {
+    cached <- all_grades_cache()
+    all_acts <- acts()
+    rows_html <- ""
+    sw <- 0; sn <- 0
+    for (i in seq_len(nrow(courses))) {
+      c_info <- courses[i, ]
+      avg <- calc_avg_fast(c_info$id, cached)
+      cr <- c_info$credits
+      if (avg$partial > 0) { sw <- sw + cr; sn <- sn + avg$partial * cr }
+      estado <- if (avg$pct_graded == 0) "Sin evaluar" else paste0(avg$partial, " / 20 (", avg$pct_graded, "% evaluado)")
+      color <- if (avg$pct_graded == 0) "#94a3b8" else if (avg$partial >= 13) "#16a34a" else if (avg$partial >= 10.5) "#d97706" else "#dc2626"
+      rows_html <- paste0(rows_html,
+        "<tr><td style=\"padding:8px;border-bottom:1px solid #eee;\"><b>", c_info$name, "</b><br><span style=\"color:#888;font-size:0.85em;\">", c_info$id, " &middot; ", cr, " cr</span></td>",
+        "<td style=\"padding:8px;border-bottom:1px solid #eee;text-align:center;color:", color, ";font-weight:bold;\">", estado, "</td></tr>")
+    }
+    prom_global <- if (sw > 0) round(sn / sw, 2) else "-"
+    html <- paste0(
+      "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>Reporte de Notas</title>",
+      "<style>body{font-family:Inter,Arial,sans-serif;max-width:800px;margin:40px auto;padding:20px;color:#1a1a2e;}",
+      "h1{color:#4f46e5;}table{width:100%;border-collapse:collapse;margin-top:20px;}",
+      "th{background:#f1f5f9;padding:10px;text-align:left;}",
+      ".prom{font-size:2rem;font-weight:800;color:#16a34a;}</style></head><body>",
+      "<h1>StudyPilot — Reporte de Notas</h1>",
+      "<p style=\"color:#888;\">Generado el ", format(Sys.time(), "%d/%m/%Y %H:%M"), "</p>",
+      "<div style=\"text-align:center;padding:20px;background:#f8fafc;border-radius:12px;\">",
+      "<div style=\"color:#888;\">Promedio Ponderado Estimado</div>",
+      "<div class=\"prom\">", prom_global, "</div>",
+      "<div style=\"color:#888;font-size:0.85em;\">Basado en ", sum(courses$credits), " creditos</div></div>",
+      "<table><thead><tr><th>Curso</th><th style=\"text-align:center;\">Promedio Parcial</th></tr></thead>",
+      "<tbody>", rows_html, "</tbody></table>",
+      "<p style=\"margin-top:30px;color:#aaa;font-size:0.8em;text-align:center;\">Tip: Usa Ctrl+P y \"Guardar como PDF\" para exportar.</p>",
+      "</body></html>")
+    writeLines(html, file)
+  }
+)

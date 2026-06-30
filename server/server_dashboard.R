@@ -100,3 +100,51 @@ output$countdown_cards <- renderUI({
   })
   layout_columns(col_widths = rep(4, length(cards)), !!!cards)
 })
+
+# ====================================================================
+# 4.3: Card "Esta Semana" — resumen compacto del día/semana
+# ====================================================================
+output$esta_semana_card <- renderUI({
+  rv$refresh
+  a <- tryCatch(acts(), error = function(e) data.frame())
+  today <- Sys.Date()
+
+  # Próximas 3 actividades pendientes
+  prox <- if (nrow(a) > 0) {
+    p <- a[a$done == 0 & !is.na(a$date) & as.Date(a$date) >= today, ]
+    if (nrow(p) > 0) p[order(as.Date(p$date)), ][seq_len(min(3, nrow(p))), ] else data.frame()
+  } else data.frame()
+
+  # Alerta de deuda académica
+  metrics <- tryCatch(calc_prep_metrics(a, rv_gcal$ai_blocks, course_topics),
+                      error = function(e) data.frame())
+  n_debt <- if (nrow(metrics) > 0) sum(metrics$alert %in% c("critica", "alta")) else 0
+
+  # Próxima clase del horario (hoy o siguiente)
+  sched <- tryCatch(mg_schedule_get(uid()), error = function(e) data.frame())
+
+  prox_items <- if (nrow(prox) > 0) {
+    lapply(seq_len(nrow(prox)), function(i) {
+      r <- prox[i, ]
+      dl <- as.integer(as.Date(r$date) - today)
+      cname <- if (r$course_id %in% courses$id) courses$short[courses$id == r$course_id] else r$course_id
+      tags$div(class = "d-flex justify-content-between align-items-center py-1 border-bottom",
+        tags$span(class = "small", tags$b(cname), " — ", r$name),
+        tags$span(class = paste0("badge ", if (dl <= 2) "bg-danger" else if (dl <= 5) "bg-warning text-dark" else "bg-secondary"),
+          if (dl == 0) "Hoy" else paste0(dl, "d")))
+    })
+  } else list(tags$div(class = "small text-muted", "Sin actividades próximas. 🎉"))
+
+  div(class = "card mb-3", style = "border-left:4px solid #4f46e5;",
+    div(class = "card-body py-2",
+      div(class = "d-flex justify-content-between align-items-center mb-2",
+        tags$h6(class = "fw-bold mb-0", "📆 Esta Semana"),
+        if (n_debt > 0) tags$a(href = "#", onclick = "Shiny.setInputValue('go_analytics', Math.random())",
+          tags$span(class = "badge bg-danger", paste0("⚠ ", n_debt, " deuda", if (n_debt > 1) "s" else "")))
+        else tags$span(class = "badge bg-success", "Al día")
+      ),
+      tags$div(class = "small fw-bold text-muted mb-1", "Próximas entregas:"),
+      prox_items
+    )
+  )
+})

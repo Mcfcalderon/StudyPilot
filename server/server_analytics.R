@@ -238,3 +238,30 @@ output$analytics_recommendation <- renderUI({
   )
 })
 
+
+# ====================================================================
+# 4.1: Deuda Académica badge in navbar
+# ====================================================================
+output$debt_alert_badge <- renderUI({
+  rv$refresh
+  all_acts <- tryCatch(acts(), error = function(e) data.frame())
+  ai_blocks <- rv_gcal$ai_blocks
+  metrics <- tryCatch(
+    calc_prep_metrics(all_acts, ai_blocks, course_topics),
+    error = function(e) data.frame())
+  if (nrow(metrics) == 0) return(NULL)
+  n_debt <- sum(metrics$alert %in% c("critica", "alta"))
+  if (n_debt == 0) return(NULL)
+  tags$a(
+    href = "#", onclick = "Shiny.setInputValue('go_analytics', Math.random())",
+    style = "text-decoration:none;",
+    tags$span(class = "badge bg-danger",
+      style = "font-size:0.75rem;animation:pulse 2s infinite;",
+      paste0(n_debt, " Deuda", if (n_debt > 1) "s" else ""))
+  )
+})
+
+# Navigate to Analytics when badge is clicked
+observeEvent(input$go_analytics, {
+  bslib::nav_select("main_nav", selected = "Analytics")
+})

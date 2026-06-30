@@ -41,6 +41,9 @@ ui_navbar <- function() {
 
     nav_spacer(),
 
+    # 4.1: Badge de deuda académica (visible desde cualquier vista)
+    nav_item(uiOutput("debt_alert_badge")),
+
     # Botón instalar PWA
     nav_item(
       actionButton("btn_install_app", label = tags$span(

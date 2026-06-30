@@ -9,6 +9,10 @@ ui_examen <- function() {
       col_widths = breakpoints(sm = c(12, 12), lg = c(3, 9)),
       div(
         tags$b(class = "small", "Configuracion"),
+      tags$div(class = "alert alert-info py-2 small mb-2",
+        tags$b("Tip: "), "Selecciona un curso y haz clic en ", tags$b("Generar"),
+        " para crear un examen de practica basado en los temas del silabo."
+      ),
         selectInput("quiz_course", "Curso:",
           choices = setNames(courses$id, courses$short),
           selected = if (nrow(courses) > 0) courses$id[1] else NULL, width = "100%"),
@@ -30,8 +34,13 @@ ui_examen <- function() {
     # ---- Material IA ----
     tags$hr(),
     tags$h5(class = "fw-bold mb-2", "Material de Estudio con IA"),
-    tags$p(class = "text-muted small",
-      "Sube un archivo y la IA genera resumenes, conceptos clave, mapas y preguntas."),
+    tags$div(class = "alert alert-light py-2 small mb-2",
+      tags$b("Flujo: "), "Sube un PDF/Word de tu curso ", tags$span(class = "text-primary", "\u2192"),
+      " La IA genera resumenes y preguntas ", tags$span(class = "text-primary", "\u2192"),
+      " Usa las preguntas en Examenes de Practica.",
+      tags$br(),
+      tags$span(class = "text-muted", "Formatos: PDF, DOCX, XLSX, TXT. Maximo 50MB.")
+    ),
     layout_columns(
       col_widths = breakpoints(sm = c(12, 12), lg = c(5, 7)),
       div(
