@@ -2,52 +2,45 @@
 library(ellmer)
 if (requireNamespace("blastula", quietly = TRUE)) library(blastula)
 
-# ============ API KEY ROTATION ============
-# Keys loaded from environment variable GEMINI_KEYS (comma-separated)
-.gemini_keys <- {
-  raw <- Sys.getenv("GEMINI_KEYS")
-  if (nchar(raw) > 0) trimws(strsplit(raw, ",")[[1]])
-  else {
-    single <- Sys.getenv("GEMINI_API_KEY")
-    if (nchar(single) > 0) single
-    else {
-      warning("[StudyPilot] GEMINI_KEYS not set. AI functions will fail. See .Renviron.example")
-      "PLACEHOLDER_KEY"
-    }
-  }
-}
-assign(".gemini_key_idx", 1L, envir = globalenv())
-
-get_gemini <- function() {
-  # 1. Try env var (set by app.R parser)
-  key <- trimws(Sys.getenv("GEMINI_API_KEY"))
-  
-  # 2. Fallback: read directly from app_env file
-  if (nchar(key) == 0 || !startsWith(key, "AIza")) {
+# ============ API KEY ROTATION (pool de claves validas + rotacion real) ============
+# Pool construido desde GEMINI_KEYS (coma-separadas) + GEMINI_API_KEY + fallback a archivo.
+# Para AGREGAR mas claves: crealas en https://aistudio.google.com/apikey (idealmente con
+# 2-3 cuentas Google distintas para cuotas independientes) y ponlas en GEMINI_KEYS
+# separadas por coma:  GEMINI_KEYS=AIza...clave1,AIza...clave2,AIza...clave3
+.load_gemini_keys <- function() {
+  raw <- c(strsplit(Sys.getenv("GEMINI_KEYS"), ",")[[1]], Sys.getenv("GEMINI_API_KEY"))
+  # Fallback: leer del archivo si el entorno viene vacio (shinyapps.io)
+  if (all(nchar(trimws(raw)) == 0)) {
     for (ef in c("app_env", ".Renviron")) {
       if (file.exists(ef)) {
         for (ln in readLines(ef, warn = FALSE)) {
-          if (startsWith(trimws(ln), "GEMINI_API_KEY=")) {
-            key <- trimws(sub("^[^=]+=", "", ln))
-            Sys.setenv(GEMINI_API_KEY = key)
-            message("[StudyPilot] Loaded GEMINI_API_KEY from file: ", nchar(key), " chars")
-            break
+          if (grepl("^GEMINI_(KEYS|API_KEY)=", trimws(ln))) {
+            v <- trimws(sub("^[^=]+=", "", ln))
+            raw <- c(raw, strsplit(v, ",")[[1]])
           }
         }
-        if (nchar(key) > 0 && startsWith(key, "AIza")) break
       }
     }
   }
-  
-  # 3. Last resort: use rotated key from GEMINI_KEYS
-  if (nchar(key) == 0 || !startsWith(key, "AIza")) {
-    idx <- get0(".gemini_key_idx", envir = globalenv(), ifnotfound = 1L)
-    key <- .gemini_keys[idx]
+  keys <- unique(trimws(raw))
+  keys <- keys[startsWith(keys, "AIza") & nchar(keys) >= 35]  # solo API keys validas de Google
+  if (length(keys) == 0) {
+    warning("[StudyPilot] Sin claves Gemini validas. Configura GEMINI_KEYS o GEMINI_API_KEY.")
+    keys <- "PLACEHOLDER_KEY"
   }
-  
-  message("[StudyPilot] Gemini key: ", substr(key, 1, 8), "*** (", nchar(key), " chars)")
+  keys
+}
+.gemini_keys <- .load_gemini_keys()
+assign(".gemini_key_idx", 1L, envir = globalenv())
+message("[StudyPilot] Pool de claves Gemini cargado: ", length(.gemini_keys), " clave(s)")
+
+get_gemini <- function(model = "gemini-2.5-flash") {
+  idx <- get0(".gemini_key_idx", envir = globalenv(), ifnotfound = 1L)
+  if (idx < 1 || idx > length(.gemini_keys)) idx <- 1L
+  key <- .gemini_keys[idx]
+  message("[StudyPilot] Gemini key #", idx, "/", length(.gemini_keys), ": ", substr(key, 1, 8), "***")
   Sys.setenv(GOOGLE_API_KEY = key)
-  chat_google_gemini(model = "gemini-2.5-flash")
+  chat_google_gemini(model = model)
 }
 
 # Rotate to next key (called on 429 errors)

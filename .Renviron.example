@@ -1,13 +1,18 @@
-# ============ StudyPilot — Variables de Entorno ============
-# Copia este archivo como .Renviron (o app_env) y llena tus valores.
-# NUNCA subas .Renviron ni app_env a GitHub.
+# ============ StudyPilot — Variables de Entorno (ejemplo) ============
+# Copia este archivo como .Renviron (local) o app_env (deploy) y completa tus valores.
+# NUNCA subas .Renviron ni app_env a GitHub (estan en .gitignore).
 
-# MongoDB Atlas (obligatorio)
-MONGODB_URI=mongodb+srv://usuario:password@cluster.mongodb.net/studypilot?retryWrites=true&w=majority
+# --- MongoDB Atlas ---
+MONGODB_URI=mongodb+srv://usuario:password@cluster.mongodb.net/studypilot
 
-# Google Gemini API Key (obligatorio para funciones de IA)
-# Obtén tu key en: https://aistudio.google.com/apikey
-GEMINI_API_KEY=AIzaSy_tu_key_aqui
+# --- Google Gemini ---
+# Crea claves en https://aistudio.google.com/apikey
+# Para MAS cuota, crea varias claves (idealmente con 2-3 cuentas Google
+# distintas = cuotas independientes) y ponlas SEPARADAS POR COMA.
+# La app las rota automaticamente cuando una llega a su limite (error 429).
+GEMINI_KEYS=AIza...clave1,AIza...clave2,AIza...clave3
+# Alternativa de una sola clave (opcional; tambien se suma al pool):
+GEMINI_API_KEY=AIza...tu_clave
 
-# Usuarios admin (formato: user:pass:Nombre)
-STUDYPILOT_ADMIN_USERS=tu.usuario:tu_password:Tu Nombre
+# --- Admin (opcional) ---
+STUDYPILOT_ADMIN_USERS=usuario:password:Nombre
