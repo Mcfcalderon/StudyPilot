@@ -40,10 +40,14 @@ PASS_GRADE <- 13
 WARN_BAND  <- 2.5   # margen bajo el umbral que se marca como "en riesgo"
 
 # Clasificacion de rendimiento (usada en Notas, Cursos y reporte)
+# Umbral efectivo (configurable por usuario via options; default = PASS_GRADE)
+get_pass_grade <- function() { v <- getOption("studypilot.pass_grade", NA); if (is.na(v)) PASS_GRADE else as.numeric(v) }
+
 grade_tier <- function(avg) {
   if (is.null(avg) || avg$pct_graded == 0) return("none")
-  if (avg$partial >= PASS_GRADE) return("ok")
-  if (avg$partial >= PASS_GRADE - WARN_BAND) return("warn")
+  pg <- get_pass_grade()
+  if (avg$partial >= pg) return("ok")
+  if (avg$partial >= pg - WARN_BAND) return("warn")
   "bad"
 }
 grade_class <- function(avg) unname(c(none="secondary", ok="success", warn="warning", bad="danger")[grade_tier(avg)])

@@ -199,6 +199,14 @@ observeEvent(auth_user(), {
 
   ensure_init()
 
+  # Cargar umbral de aprobacion del usuario (Fase C)
+  tryCatch({
+    st <- mg_settings_get(uid())
+    pg <- suppressWarnings(as.numeric(st$pass_grade))
+    options(studypilot.pass_grade = if (length(pg) && !is.na(pg)) pg else PASS_GRADE)
+    updateSelectInput(session, "pass_grade_sel", selected = getOption("studypilot.pass_grade", PASS_GRADE))
+  }, error = function(e) options(studypilot.pass_grade = PASS_GRADE))
+
   # Load courses from MongoDB
   db_courses <- tryCatch(mg_custom_courses_get(uid()), error = function(e) {
     message("[StudyPilot] Error loading courses: ", e$message); data.frame()

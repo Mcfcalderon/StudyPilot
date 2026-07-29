@@ -115,7 +115,7 @@ server <- function(input, output, session) {
     rem <- merged[is.na(merged$grade), c(name_col, "weight")]
     if (nrow(rem) > 0) names(rem) <- c("name", "weight")
     # Nota constante necesaria en CADA evaluacion restante para aprobar (umbral = PASS_GRADE)
-    needed <- if (remaining > 0) (PASS_GRADE - earned) / (remaining / 100) else 0
+    needed <- if (remaining > 0) (get_pass_grade() - earned) / (remaining / 100) else 0
     list(partial = round(partial, 2), pct_graded = round(pct),
          earned = round(earned, 2), needed = round(max(0, needed), 2),
          remaining = round(remaining), remaining_evals = rem)

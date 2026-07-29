@@ -388,3 +388,17 @@ mg_ai_blocks_set <- function(uid, ai_blocks_df) {
   }
 }
 
+
+# ============ SETTINGS (preferencias por usuario) ============
+mg_settings_get <- function(uid) {
+  s <- mongo_col("settings"); if (is.null(s)) return(list())
+  r <- tryCatch(s$find(uf(uid)), error = function(e) data.frame())
+  if (nrow(r) == 0) return(list())
+  as.list(r[1, , drop = FALSE])
+}
+
+mg_settings_set <- function(uid, key, value) {
+  s <- mongo_col("settings"); if (is.null(s)) return(invisible(NULL))
+  s$update(uf(uid), paste0('{"$set": {"', key, '": ', value, '}}'), upsert = TRUE)
+}
+

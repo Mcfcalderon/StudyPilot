@@ -253,3 +253,18 @@ output$download_grades_pdf <- downloadHandler(
     writeLines(html, file)
   }
 )
+
+# ====================================================================
+# Umbral de aprobacion configurable (Fase C)
+# ====================================================================
+observeEvent(input$pass_grade_sel, {
+  val <- suppressWarnings(as.numeric(input$pass_grade_sel))
+  if (is.na(val)) return()
+  options(studypilot.pass_grade = val)
+  tryCatch(mg_settings_set(uid(), "pass_grade", val),
+           error = function(e) message("[StudyPilot] settings save error: ", e$message))
+  rv$grades_refresh <- isolate(rv$grades_refresh) + 1
+  rv$refresh <- isolate(rv$refresh) + 1
+  showNotification(paste0("Umbral de aprobacion: ", val, "/20"), type = "message", duration = 3)
+}, ignoreInit = TRUE)
+
