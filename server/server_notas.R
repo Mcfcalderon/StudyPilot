@@ -157,6 +157,7 @@ observeEvent(input$save_grade_course, {
       if (is.null(evals$code[jj]) || !is.character(evals$code[jj]) || nchar(evals$code[jj]) == 0) evals$code[jj] <- paste0("E", jj)
     }
     saved <- 0
+    invalid <- character()
     current_uid <- uid()
 
     for (j in seq_len(nrow(evals))) {
@@ -165,7 +166,8 @@ observeEvent(input$save_grade_course, {
       val <- input[[paste0("grade_", cid, "_", ev_code)]]
 
       if (!is.null(val) && !is.na(val) && is.numeric(val)) {
-        mg_grade_set(current_uid, cid, ev_code, val)
+        if (val < 0 || val > 20) { invalid <- c(invalid, ev$name); next }
+        mg_grade_set(current_uid, cid, ev_code, round(val, 2))
         saved <- saved + 1
       } else {
         # Delete grade if input is empty (user cleared it)
@@ -176,6 +178,7 @@ observeEvent(input$save_grade_course, {
     rv$grades_refresh <- isolate(rv$grades_refresh) + 1
     cname <- if (cid %in% courses$id) courses$short[courses$id == cid] else cid
     showNotification(paste0(saved, " notas de ", cname, " guardadas"), type = "message")
+    if (length(invalid) > 0) showNotification(paste0("Ignoradas (fuera de 0-20): ", paste(invalid, collapse=", ")), type = "warning", duration = 8)
   }, error = function(e) {
     showNotification(paste0("Error: ", e$message), type = "error")
   })

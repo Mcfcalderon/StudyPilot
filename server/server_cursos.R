@@ -230,6 +230,16 @@ observeEvent(input$syllabus_extract_btn, {
   files <- input$syllabus_file  # dataframe: name, size, type, datapath
   n_files <- nrow(files)
 
+  # Validacion de archivos: tipo permitido y tamaño <= 15MB
+  ok_ext <- c("pdf", "docx", "txt"); MAX_MB <- 15
+  is_ok <- (tolower(tools::file_ext(files$name)) %in% ok_ext) & (files$size <= MAX_MB * 1024^2)
+  if (any(!is_ok)) {
+    showNotification(paste0("Archivos ignorados (tipo no valido o > ", MAX_MB, "MB): ",
+                            paste(files$name[!is_ok], collapse = ", ")), type = "warning", duration = 8)
+    files <- files[is_ok, , drop = FALSE]; n_files <- nrow(files)
+  }
+  if (n_files == 0) return()
+
   shinyjs::disable("syllabus_extract_btn")
   current_uid <- uid()
 
