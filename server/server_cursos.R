@@ -56,7 +56,7 @@ output$course_cards <- renderUI({
     topics <- course_topics[[c_info$id]]
     graded_codes <- cached$code[cached$course_id == c_info$id]
     pending <- evaluations |> filter(course_id == c_info$id, !code %in% graded_codes)
-    col <- if (avg$partial >= 10.5) "success" else "danger"
+    col <- grade_class(avg)
 
     card(class = "mb-3", style = paste0("border-left:4px solid ", c_info$color),
       card_header(c_info$name),

@@ -46,7 +46,7 @@ output$grades_panels <- renderUI({
     }
 
     avg <- calc_avg_fast(c_info$id, cached)
-    col <- if (avg$pct_graded == 0) "secondary" else if (avg$partial >= 13) "success" else if (avg$partial >= 10.5) "warning" else "danger"
+    col <- grade_class(avg)
 
     # Build grade input rows
     grade_inputs <- lapply(seq_len(nrow(evals)), function(j) {
@@ -225,7 +225,7 @@ output$download_grades_pdf <- downloadHandler(
       cr <- c_info$credits
       if (avg$partial > 0) { sw <- sw + cr; sn <- sn + avg$partial * cr }
       estado <- if (avg$pct_graded == 0) "Sin evaluar" else paste0(avg$earned, " / 20 pts (", avg$pct_graded, "% evaluado, parcial ", avg$partial, ")")
-      color <- if (avg$pct_graded == 0) "#94a3b8" else if (avg$partial >= 13) "#16a34a" else if (avg$partial >= 10.5) "#d97706" else "#dc2626"
+      color <- grade_hex(avg)
       rows_html <- paste0(rows_html,
         "<tr><td style=\"padding:8px;border-bottom:1px solid #eee;\"><b>", c_info$name, "</b><br><span style=\"color:#888;font-size:0.85em;\">", c_info$id, " &middot; ", cr, " cr</span></td>",
         "<td style=\"padding:8px;border-bottom:1px solid #eee;text-align:center;color:", color, ";font-weight:bold;\">", estado, "</td></tr>")

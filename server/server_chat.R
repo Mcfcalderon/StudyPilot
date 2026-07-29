@@ -51,7 +51,7 @@ build_user_context <- function() {
         paste0("  Puntos acumulados (asegurados de 20): ", avg$earned, "/20"),
         paste0("  Promedio parcial (sobre lo evaluado): ", avg$partial,
                "/20 | ", avg$pct_graded, "% del curso evaluado"))
-      # Nota necesaria por evaluacion restante para aprobar (umbral 10.5)
+      # Nota necesaria por evaluacion restante para aprobar (umbral = PASS_GRADE)
       if (avg$remaining > 0) {
         rem_names <- if (is.data.frame(avg$remaining_evals) && nrow(avg$remaining_evals) > 0)
           paste0(avg$remaining_evals$name, " (", avg$remaining_evals$weight, "%)", collapse = ", ")

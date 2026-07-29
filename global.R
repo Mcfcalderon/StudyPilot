@@ -33,6 +33,21 @@ lapply(list.files("ui", pattern = "\\.R$", full.names = TRUE), function(f) {
 # ============ SEMESTER CONFIG ============
 SEMESTER_START <- as.Date("2026-03-23")
 TOTAL_WEEKS <- 16
+
+# Umbral de aprobacion (escala 0-20). UTEC usa 13 como minimo aprobatorio.
+# >>> UNICA fuente de verdad: cambia aqui si tu institucion usa otro umbral (p.ej. 11).
+PASS_GRADE <- 13
+WARN_BAND  <- 2.5   # margen bajo el umbral que se marca como "en riesgo"
+
+# Clasificacion de rendimiento (usada en Notas, Cursos y reporte)
+grade_tier <- function(avg) {
+  if (is.null(avg) || avg$pct_graded == 0) return("none")
+  if (avg$partial >= PASS_GRADE) return("ok")
+  if (avg$partial >= PASS_GRADE - WARN_BAND) return("warn")
+  "bad"
+}
+grade_class <- function(avg) unname(c(none="secondary", ok="success", warn="warning", bad="danger")[grade_tier(avg)])
+grade_hex   <- function(avg) unname(c(none="#94a3b8", ok="#16a34a", warn="#d97706", bad="#dc2626")[grade_tier(avg)])
 current_week <- function() {
   w <- as.integer(difftime(Sys.Date(), SEMESTER_START, units = "weeks")) + 1L
   max(1L, min(w, TOTAL_WEEKS))
