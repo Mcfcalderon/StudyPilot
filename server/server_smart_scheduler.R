@@ -170,6 +170,22 @@ observeEvent(input$btn_gen_schedule, {
       ai_events$className  <- "evento-ia"
       ai_events$isReadOnly <- FALSE
 
+      # --- Repaso espaciado hacia cada examen (practica distribuida) ---
+      repaso_df <- tryCatch(generar_repaso_espaciado(all_a, all_c, end_horizon),
+                            error = function(e) { message("[StudyPilot] Repaso error: ", e$message); data.frame() })
+      n_repaso <- nrow(repaso_df)
+      if (n_repaso > 0) {
+        rep_events <- estandarizar_evento(data.frame(
+          summary = repaso_df$summary,
+          start   = paste0(repaso_df$fecha, "T", repaso_df$hora_inicio),
+          end     = paste0(repaso_df$fecha, "T", repaso_df$hora_fin),
+          location = "", color = repaso_df$color, is_ai = TRUE, stringsAsFactors = FALSE), "ai")
+        rep_events$className  <- "evento-ia"
+        rep_events$isReadOnly <- FALSE
+        ai_events <- rbind(ai_events, rep_events)
+        message("[StudyPilot] Repaso espaciado: ", n_repaso, " bloques agregados")
+      }
+
       # Persistir a MongoDB
       mg_ai_blocks_set(current_uid, ai_events)
       message("[StudyPilot] Smart Scheduler: AI blocks persisted to MongoDB")
@@ -180,7 +196,8 @@ observeEvent(input$btn_gen_schedule, {
 
       shinyjs::html("smart_sched_status", paste0(
         '<div class="alert alert-success py-2 small">',
-        nrow(study_blocks), ' bloques inyectados en tu calendario. ',
+        nrow(study_blocks) + n_repaso, ' bloques inyectados (', nrow(study_blocks),
+        ' de estudio + ', n_repaso, ' de repaso espaciado). ',
         'Mira abajo para verlos en la grilla.</div>'))
 
     }, error = function(e) {

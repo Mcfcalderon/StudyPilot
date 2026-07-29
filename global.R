@@ -160,6 +160,37 @@ render_diagram <- function(diagram_data) {
 }
 
 priority_class <- function(w) case_when(w >= 20 ~ "high", w >= 10 ~ "medium", TRUE ~ "low")
+
+# Repaso espaciado: bloques de repaso en intervalos crecientes antes de cada examen
+# (fundamento: efecto de espaciamiento / practica distribuida, Cepeda et al. 2006)
+generar_repaso_espaciado <- function(all_a, courses_df, horizon_end,
+                                     offsets = c(1, 3, 7, 14),
+                                     hora_inicio = "19:00", dur_min = 90) {
+  out <- data.frame(summary = character(), fecha = character(), hora_inicio = character(),
+                    hora_fin = character(), color = character(), stringsAsFactors = FALSE)
+  if (is.null(all_a) || nrow(all_a) == 0) return(out)
+  hoy <- Sys.Date()
+  ex <- all_a[all_a$done == 0 & !is.na(all_a$date) &
+              all_a$type %in% c("examen", "quiz") &
+              !is.na(all_a$weight) & all_a$weight >= 15, ]
+  if (nrow(ex) == 0) return(out)
+  hi <- as.integer(substr(hora_inicio, 1, 2)); mi <- as.integer(substr(hora_inicio, 4, 5))
+  tot <- hi * 60 + mi + dur_min
+  hora_fin <- sprintf("%02d:%02d:00", (tot %/% 60) %% 24, tot %% 60)
+  for (i in seq_len(nrow(ex))) {
+    d_ex <- as.Date(ex$date[i])
+    cname <- if (ex$course_id[i] %in% courses_df$id) courses_df$short[courses_df$id == ex$course_id[i]] else ex$course_id[i]
+    for (off in offsets) {
+      d <- d_ex - off
+      if (d < hoy || d > as.Date(horizon_end)) next
+      out <- rbind(out, data.frame(
+        summary = paste0("Repaso ", cname, ": ", ex$name[i]),
+        fecha = as.character(d), hora_inicio = paste0(hora_inicio, ":00"),
+        hora_fin = hora_fin, color = "teal", stringsAsFactors = FALSE))
+    }
+  }
+  out[order(out$fecha), ]
+}
 days_until <- function(date_str) as.integer(as.Date(date_str) - Sys.Date())
 
 calcular_prioridades_estudio <- function(df_cursos, df_actividades, df_grades = NULL) {

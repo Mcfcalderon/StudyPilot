@@ -161,12 +161,21 @@ observeEvent(input$syllabus_upload_btn, {
 # HELPER: Read file content (shared by single + batch)
 # ====================================================================
 read_syllabus_file <- function(filepath, ext) {
-  if (ext == "txt") paste(readLines(filepath, warn = FALSE), collapse = "\n")
-  else if (ext == "pdf" && requireNamespace("pdftools", quietly = TRUE))
-    paste(pdftools::pdf_text(filepath), collapse = "\n")
-  else if (ext == "docx" && requireNamespace("readtext", quietly = TRUE))
-    readtext::readtext(filepath)$text
-  else ""
+  if (ext == "txt") return(paste(readLines(filepath, warn = FALSE), collapse = "\n"))
+  if (ext == "docx" && requireNamespace("readtext", quietly = TRUE)) return(readtext::readtext(filepath)$text)
+  if (ext == "pdf" && requireNamespace("pdftools", quietly = TRUE)) {
+    text <- tryCatch(paste(pdftools::pdf_text(filepath), collapse = "\n"), error = function(e) "")
+    # Fallback OCR: si el PDF es escaneado (poco/nada de texto embebido)
+    if (nchar(trimws(text)) < 50 && requireNamespace("tesseract", quietly = TRUE)) {
+      message("[StudyPilot] PDF sin texto embebido -> intentando OCR...")
+      ocr_try <- function(lang) paste(pdftools::pdf_ocr_text(filepath, language = lang), collapse = "\n")
+      text <- tryCatch(ocr_try("spa"),
+                error = function(e) tryCatch(ocr_try("eng"),
+                  error = function(e2) { message("[StudyPilot] OCR fallo: ", conditionMessage(e2)); text }))
+    }
+    return(text)
+  }
+  ""
 }
 
 # ====================================================================
