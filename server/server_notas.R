@@ -260,7 +260,7 @@ output$download_grades_pdf <- downloadHandler(
 observeEvent(input$pass_grade_sel, {
   val <- suppressWarnings(as.numeric(input$pass_grade_sel))
   if (is.na(val)) return()
-  options(studypilot.pass_grade = val)
+  session$userData$pass_grade(val)
   tryCatch(mg_settings_set(uid(), "pass_grade", val),
            error = function(e) message("[StudyPilot] settings save error: ", e$message))
   rv$grades_refresh <- isolate(rv$grades_refresh) + 1

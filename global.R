@@ -41,7 +41,15 @@ WARN_BAND  <- 2.5   # margen bajo el umbral que se marca como "en riesgo"
 
 # Clasificacion de rendimiento (usada en Notas, Cursos y reporte)
 # Umbral efectivo (configurable por usuario via options; default = PASS_GRADE)
-get_pass_grade <- function() { v <- getOption("studypilot.pass_grade", NA); if (is.na(v)) PASS_GRADE else as.numeric(v) }
+get_pass_grade <- function() {
+  dom <- shiny::getDefaultReactiveDomain()
+  if (!is.null(dom) && !is.null(dom$userData$pass_grade)) {
+    rvv <- dom$userData$pass_grade
+    val <- tryCatch(if (is.function(rvv)) rvv() else rvv, error = function(e) NULL)
+    if (!is.null(val) && !is.na(suppressWarnings(as.numeric(val)))) return(as.numeric(val))
+  }
+  PASS_GRADE
+}
 
 grade_tier <- function(avg) {
   if (is.null(avg) || avg$pct_graded == 0) return("none")

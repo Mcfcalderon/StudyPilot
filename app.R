@@ -28,6 +28,8 @@ ui <- ui_navbar()
 server <- function(input, output, session) {
 
   auth_user <- reactiveVal(NULL)
+  # Umbral de aprobacion POR SESION (no global): cada usuario tiene el suyo
+  session$userData$pass_grade <- reactiveVal(PASS_GRADE)
   uid <- reactive({ req(auth_user()); auth_user()$user })
 
   rv <- reactiveValues(
