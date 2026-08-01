@@ -102,25 +102,8 @@ server <- function(input, output, session) {
         evals_c$code[j] <- paste0("E", j)
       }
     }
-    total_w <- sum(evals_c$weight, na.rm = TRUE)
-    if (total_w == 0) return(empty)
-    # Merge grades by code (keep name for remaining list)
-    name_col <- if ("name" %in% names(evals_c)) "name" else "code"
-    merged <- merge(evals_c[, c("code", "weight", name_col)], g[, c("code", "grade")], by = "code", all.x = TRUE)
-    graded <- merged[!is.na(merged$grade), ]
-    # Puntos absolutos de 20 ya asegurados
-    earned <- if (nrow(graded) > 0) sum(graded$grade * graded$weight / 100, na.rm = TRUE) else 0
-    pct <- if (nrow(graded) > 0) sum(graded$weight, na.rm = TRUE) else 0
-    partial <- if (pct > 0) earned / (pct / 100) else 0
-    remaining <- total_w - pct
-    # Evaluaciones restantes (sin nota)
-    rem <- merged[is.na(merged$grade), c(name_col, "weight")]
-    if (nrow(rem) > 0) names(rem) <- c("name", "weight")
-    # Nota constante necesaria en CADA evaluacion restante para aprobar (umbral = PASS_GRADE)
-    needed <- if (remaining > 0) (get_pass_grade() - earned) / (remaining / 100) else 0
-    list(partial = round(partial, 2), pct_graded = round(pct),
-         earned = round(earned, 2), needed = round(max(0, needed), 2),
-         remaining = round(remaining), remaining_evals = rem)
+    # Delegar el calculo aritmetico en la funcion pura testeable
+    compute_course_avg(evals_c, g[, c("code", "grade")], get_pass_grade())
   }
 
   # ---- Server modules (local=TRUE shares reactives) ----

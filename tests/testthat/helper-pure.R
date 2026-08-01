@@ -13,3 +13,6 @@ grade_class <- function(avg) unname(c(none="secondary",ok="success",warn="warnin
 grade_hex   <- function(avg) unname(c(none="#94a3b8",ok="#16a34a",warn="#d97706",bad="#dc2626")[grade_tier(avg)])
 priority_class <- function(w) dplyr::case_when(w>=20~"high", w>=10~"medium", TRUE~"low")
 
+
+# Cargar el codigo REAL de las funciones puras (no copias)
+for (.p in c("R/pure_calc.R", "../../R/pure_calc.R")) if (file.exists(.p)) { source(.p); break }
