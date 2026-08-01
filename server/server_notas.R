@@ -178,6 +178,7 @@ observeEvent(input$save_grade_course, {
     rv$grades_refresh <- isolate(rv$grades_refresh) + 1
     cname <- if (cid %in% courses$id) courses$short[courses$id == cid] else cid
     showNotification(paste0(saved, " notas de ", cname, " guardadas"), type = "message")
+    tryCatch(mg_log_event(current_uid, "grades_save", saved), error = function(e) NULL)
     if (length(invalid) > 0) showNotification(paste0("Ignoradas (fuera de 0-20): ", paste(invalid, collapse=", ")), type = "warning", duration = 8)
   }, error = function(e) {
     showNotification(paste0("Error: ", e$message), type = "error")

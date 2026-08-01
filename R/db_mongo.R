@@ -402,3 +402,18 @@ mg_settings_set <- function(uid, key, value) {
   s$update(uf(uid), paste0('{"$set": {"', key, '": ', value, '}}'), upsert = TRUE)
 }
 
+
+# ============ USAGE METRICS (best-effort, no bloquea la app) ============
+mg_log_event <- function(uid, event, detail = "") {
+  col <- mongo_col("usage_events"); if (is.null(col)) return(invisible(NULL))
+  tryCatch(col$insert(data.frame(user_id = uid, event = event,
+    detail = as.character(detail), ts = format(Sys.time(), "%Y-%m-%dT%H:%M:%S"),
+    stringsAsFactors = FALSE)), error = function(e) NULL)
+  invisible(NULL)
+}
+
+mg_usage_all <- function(uid) {
+  col <- mongo_col("usage_events"); if (is.null(col)) return(data.frame())
+  tryCatch(col$find(uf(uid)), error = function(e) data.frame())
+}
+

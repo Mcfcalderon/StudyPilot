@@ -37,6 +37,7 @@ observeEvent(input$btn_gen_schedule, {
       # STEP 1: Cargar cursos, actividades y notas
       # ==============================================================
       message("[StudyPilot] Smart Scheduler Step 1: Loading data...")
+      tryCatch(mg_log_event(current_uid, "smart_schedule"), error = function(e) NULL)
       all_c <- get0("courses", envir = globalenv())
       all_a <- mg_activities_all(current_uid)
       all_g <- mg_grades_all(current_uid)

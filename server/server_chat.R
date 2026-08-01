@@ -144,6 +144,7 @@ observeEvent(input$chat_send, {
   if (nchar(q) < 2) return()
 
   rv_chat$messages <- c(rv_chat$messages, list(list(role = "user", text = q)))
+  tryCatch(mg_log_event(uid(), "chat"), error = function(e) NULL)
   updateTextInput(session, "chat_input", value = "")
   rv_chat$messages <- c(rv_chat$messages, list(list(role = "ai", text = "Pensando...")))
 

@@ -212,6 +212,7 @@ observeEvent(auth_user(), {
     message("[StudyPilot] Error loading courses: ", e$message); data.frame()
   })
   message("[StudyPilot] Post-login: ", nrow(db_courses), " courses")
+  tryCatch(mg_log_event(uid(), "login"), error = function(e) NULL)
   if (nrow(db_courses) > 0) {
     assign("courses", tibble::as_tibble(db_courses), envir = globalenv())
   }

@@ -265,3 +265,18 @@ output$debt_alert_badge <- renderUI({
 observeEvent(input$go_analytics, {
   bslib::nav_select("main_nav", selected = "Analytics")
 })
+
+# ============ Metricas de uso (Fase D) ============
+output$usage_summary <- renderUI({
+  rv$refresh
+  u <- tryCatch(mg_usage_all(uid()), error = function(e) data.frame())
+  if (!is.data.frame(u) || nrow(u) == 0) return(NULL)
+  tab <- sort(table(u$event), decreasing = TRUE)
+  labs <- c(login = "Inicios de sesion", smart_schedule = "Horarios IA generados",
+            grades_save = "Guardados de notas", chat = "Consultas al chat",
+            syllabus_extract = "Silabos extraidos")
+  items <- lapply(names(tab), function(k) tags$li(paste0(if (!is.na(labs[k])) labs[k] else k, ": ", as.integer(tab[[k]]))))
+  tags$div(class = "card mt-3", tags$div(class = "card-body py-2",
+    tags$b("Tu actividad en StudyPilot"), tags$ul(class = "small mb-0 mt-1", items)))
+})
+

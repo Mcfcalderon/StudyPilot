@@ -20,7 +20,8 @@ ui_analytics <- function() {
 
     # ---- Recommendation ----
     tags$h5(class = "fw-bold mb-2 mt-3", "Recomendacion IA"),
-    uiOutput("analytics_recommendation")
+    uiOutput("analytics_recommendation"),
+    uiOutput("usage_summary")
   )
 }
 
