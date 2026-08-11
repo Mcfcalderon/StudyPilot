@@ -22,7 +22,7 @@ output$activities_table <- renderDT({
                      ifelse(course_id %in% courses$id,
                             courses$short[match(course_id, courses$id)], course_id)),
       Dias = as.integer(as.Date(date) - Sys.Date()),
-      SemanaCalc = vapply(as.character(date), function(x) date_to_week(x), integer(1)),
+      SemanaCalc = vapply(as.character(date), function(x) as.integer(date_to_week(x)), integer(1)),
       Estado = ifelse(done == 1, "OK", ifelse(Dias < 0, "!", " ")),
       Prioridad = priority_class(weight)
     ) |>

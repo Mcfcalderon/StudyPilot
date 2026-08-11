@@ -37,7 +37,7 @@ server <- function(input, output, session) {
 
   rv <- reactiveValues(
     refresh = 0, grades_refresh = 0,
-    view_week = current_week(), cal_week = current_week()
+    view_week = 1L, cal_week = 1L
   )
 
   rv_gcal <- reactiveValues(

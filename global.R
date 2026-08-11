@@ -43,7 +43,7 @@ get_semester_start <- function() {
   }
   SEMESTER_START
 }
-TOTAL_WEEKS <- 16
+TOTAL_WEEKS <- 16L
 
 # Umbral de aprobacion (escala 0-20). UTEC usa 13 como minimo aprobatorio.
 # >>> UNICA fuente de verdad: cambia aqui si tu institucion usa otro umbral (p.ej. 11).
@@ -73,7 +73,7 @@ grade_class <- function(avg) unname(c(none="secondary", ok="success", warn="warn
 grade_hex   <- function(avg) unname(c(none="#94a3b8", ok="#16a34a", warn="#d97706", bad="#dc2626")[grade_tier(avg)])
 current_week <- function() {
   w <- as.integer(difftime(Sys.Date(), get_semester_start(), units = "weeks")) + 1L
-  max(1L, min(w, TOTAL_WEEKS))
+  as.integer(max(1L, min(w, TOTAL_WEEKS)))
 }
 week_to_date <- function(w, eval_day = 5) {
   get_semester_start() + (w - 1) * 7 + (eval_day - 1)
@@ -83,7 +83,7 @@ date_to_week <- function(date_val) {
   d <- tryCatch(as.Date(date_val), error = function(e) NA)
   if (is.na(d)) return(0L)
   w <- as.integer(difftime(d, get_semester_start(), units = "weeks")) + 1L
-  max(1L, min(w, TOTAL_WEEKS))
+  as.integer(max(1L, min(w, TOTAL_WEEKS)))
 }
 
 # ============ CALENDAR CONSTANTS ============
