@@ -208,7 +208,7 @@ guardar_curso_extraido <- function(user_id, d, syllabus_text = NULL) {
       ev_date <- if (!is.na(ev_week) && ev_week > 0) as.character(week_to_date(ev_week, 5L)) else as.character(Sys.Date())
       if (is.na(ev_weight)) ev_weight <- 0
       if (is.na(ev_week) || ev_week == 0) ev_week <- date_to_week(ev_date)
-      mg_activity_add(user_id, cid, ev_type, evals$nombre[i], ev_date, ev_weight, paste0("Semana ", ev_week))
+      mg_activity_add(user_id, cid, ev_type, evals$nombre[i], ev_date, ev_weight, paste0("Semana ", ev_week), week = ev_week)
     }
     n_evals <- nrow(evals)
   }

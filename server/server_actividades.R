@@ -22,11 +22,12 @@ output$activities_table <- renderDT({
                      ifelse(course_id %in% courses$id,
                             courses$short[match(course_id, courses$id)], course_id)),
       Dias = as.integer(as.Date(date) - Sys.Date()),
+      SemanaCalc = vapply(as.character(date), function(x) date_to_week(x), integer(1)),
       Estado = ifelse(done == 1, "OK", ifelse(Dias < 0, "!", " ")),
       Prioridad = priority_class(weight)
     ) |>
     select(ID = act_id, Estado, Curso, Actividad = name, Tipo = type,
-           `Peso%` = weight, Semana = week, Fecha = date, Dias, Prioridad)
+           `Peso%` = weight, Semana = SemanaCalc, Fecha = date, Dias, Prioridad)
 
   datatable(a,
     options = list(pageLength = 15, order = list(list(8, "asc")), dom = "frtip"),

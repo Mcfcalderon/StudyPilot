@@ -90,7 +90,7 @@ mg_activity_toggle <- function(uid, act_id, new_done) {
   a# connection reused
 }
 
-mg_activity_add <- function(uid, cid, type, name, date, weight, notes, temas = NULL, is_calificada = TRUE) {
+mg_activity_add <- function(uid, cid, type, name, date, weight, notes, temas = NULL, is_calificada = TRUE, week = 0L) {
   a <- mongo_col("activities")
   if (is.null(a)) return(invisible(NULL))
   max_id <- 0
@@ -98,7 +98,7 @@ mg_activity_add <- function(uid, cid, type, name, date, weight, notes, temas = N
   if (nrow(existing) > 0) max_id <- existing$act_id[1]
   doc <- list(
     user_id = uid, act_id = max_id + 1L, course_id = cid, type = type, name = name,
-    code = "", date = date, week = 0L, weight = as.numeric(weight),
+    code = "", date = date, week = as.integer(week), weight = as.numeric(weight),
     done = 0L, done_date = NA_character_, notes = notes,
     is_calificada = isTRUE(is_calificada)
   )
