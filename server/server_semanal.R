@@ -11,7 +11,7 @@ observeEvent(input$week_next, { rv$view_week <- min(TOTAL_WEEKS, rv$view_week + 
 
 output$week_title <- renderUI({
   w <- rv$view_week
-  d1 <- SEMESTER_START + (w - 1) * 7
+  d1 <- get_semester_start() + (w - 1) * 7
   d2 <- d1 + 5
   tags$h5(class = "mb-0",
     paste0("Semana ", w, " (", format(d1, "%d %b"), " - ", format(d2, "%d %b"), ")"))
@@ -26,7 +26,7 @@ output$week_view <- renderUI({
   a <- acts()
 
   days <- lapply(1:6, function(d) {
-    dd <- SEMESTER_START + (w - 1) * 7 + (d - 1)
+    dd <- get_semester_start() + (w - 1) * 7 + (d - 1)
     is_today <- dd == Sys.Date()
     dd_str <- as.character(dd)
 

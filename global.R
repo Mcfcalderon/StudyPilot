@@ -31,7 +31,18 @@ lapply(list.files("ui", pattern = "\\.R$", full.names = TRUE), function(f) {
 })
 
 # ============ SEMESTER CONFIG ============
-SEMESTER_START <- as.Date("2026-03-23")
+SEMESTER_START <- as.Date("2026-03-23")  # default; se sobreescribe por usuario
+
+# Fecha de inicio del ciclo POR SESION (configurable/persistente); fallback al default
+get_semester_start <- function() {
+  dom <- shiny::getDefaultReactiveDomain()
+  if (!is.null(dom) && !is.null(dom$userData$semester_start)) {
+    rvv <- dom$userData$semester_start
+    val <- tryCatch(if (is.function(rvv)) rvv() else rvv, error = function(e) NULL)
+    if (!is.null(val) && !is.na(as.Date(val, origin = "1970-01-01"))) return(as.Date(val, origin = "1970-01-01"))
+  }
+  SEMESTER_START
+}
 TOTAL_WEEKS <- 16
 
 # Umbral de aprobacion (escala 0-20). UTEC usa 13 como minimo aprobatorio.
@@ -61,17 +72,17 @@ grade_tier <- function(avg) {
 grade_class <- function(avg) unname(c(none="secondary", ok="success", warn="warning", bad="danger")[grade_tier(avg)])
 grade_hex   <- function(avg) unname(c(none="#94a3b8", ok="#16a34a", warn="#d97706", bad="#dc2626")[grade_tier(avg)])
 current_week <- function() {
-  w <- as.integer(difftime(Sys.Date(), SEMESTER_START, units = "weeks")) + 1L
+  w <- as.integer(difftime(Sys.Date(), get_semester_start(), units = "weeks")) + 1L
   max(1L, min(w, TOTAL_WEEKS))
 }
 week_to_date <- function(w, eval_day = 5) {
-  SEMESTER_START + (w - 1) * 7 + (eval_day - 1)
+  get_semester_start() + (w - 1) * 7 + (eval_day - 1)
 }
 
 date_to_week <- function(date_val) {
   d <- tryCatch(as.Date(date_val), error = function(e) NA)
   if (is.na(d)) return(0L)
-  w <- as.integer(difftime(d, SEMESTER_START, units = "weeks")) + 1L
+  w <- as.integer(difftime(d, get_semester_start(), units = "weeks")) + 1L
   max(1L, min(w, TOTAL_WEEKS))
 }
 

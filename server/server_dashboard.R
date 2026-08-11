@@ -6,7 +6,7 @@ output$week_timeline <- renderUI({
   cw <- current_week()
   blocks <- lapply(1:TOTAL_WEEKS, function(w) {
     cls <- if (w < cw) "wk-past" else if (w == cw) "wk-current" else "wk-future"
-    d <- SEMESTER_START + (w - 1) * 7
+    d <- get_semester_start() + (w - 1) * 7
     tags$div(class = paste("wk-block", cls),
       tags$div(class = "wk-num", paste0("S", w)),
       tags$div(class = "wk-date", format(d, "%d/%m"))

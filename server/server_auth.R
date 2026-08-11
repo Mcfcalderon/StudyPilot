@@ -205,6 +205,9 @@ observeEvent(auth_user(), {
     pg <- suppressWarnings(as.numeric(st$pass_grade))
     session$userData$pass_grade(if (length(pg) && !is.na(pg)) pg else PASS_GRADE)
     updateSelectInput(session, "pass_grade_sel", selected = session$userData$pass_grade())
+    ssd <- tryCatch(as.Date(st$semester_start), error = function(e) NA)
+    session$userData$semester_start(if (length(ssd) && !is.na(ssd)) ssd else SEMESTER_START)
+    updateDateInput(session, "cycle_start", value = session$userData$semester_start())
   }, error = function(e) session$userData$pass_grade(PASS_GRADE))
 
   # Load courses from MongoDB

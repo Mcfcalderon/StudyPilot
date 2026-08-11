@@ -299,3 +299,19 @@ output$gcal_events_table <- renderUI({
   )
 })
 
+
+# ====================================================================
+# INICIO DEL CICLO (Semana 1) — configurable y persistente
+# ====================================================================
+observeEvent(input$cycle_start_save, {
+  d <- tryCatch(as.Date(input$cycle_start), error = function(e) NA)
+  if (is.na(d)) { showNotification("Fecha invalida", type = "error"); return() }
+  session$userData$semester_start(d)
+  tryCatch(mg_settings_set(uid(), "semester_start", as.character(d)),
+           error = function(e) message("[StudyPilot] semester_start save error: ", e$message))
+  rv$cal_week <- current_week(); rv$view_week <- current_week()
+  rv$refresh <- isolate(rv$refresh) + 1
+  showNotification(paste0("Ciclo iniciado el ", format(d, "%d %b %Y"),
+                          " -> hoy es Semana ", current_week(), "/", TOTAL_WEEKS), type = "message", duration = 6)
+})
+

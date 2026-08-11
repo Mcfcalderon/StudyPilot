@@ -29,6 +29,7 @@ observeEvent(input$btn_gen_schedule, {
   current_uid <- uid()
   sleep_s <- input$sleep_start
   sleep_e <- input$sleep_end
+  sem_start <- get_semester_start()
 
   session$onFlushed(function() {
     tryCatch({
@@ -79,7 +80,7 @@ observeEvent(input$btn_gen_schedule, {
         if (nrow(pending) > 0) max(as.Date(pending$date), na.rm = TRUE) else Sys.Date() + 14
       }, error = function(e) Sys.Date() + 14)
 
-      semester_end <- SEMESTER_START + 16 * 7
+      semester_end <- sem_start + 16 * 7
       end_horizon  <- min(max(last_eval_date + 1, Sys.Date() + 7), semester_end)
       weeks_remaining <- ceiling(as.numeric(end_horizon - Sys.Date()) / 7)
       message("[StudyPilot] Horizon: ", Sys.Date(), " -> ", end_horizon,

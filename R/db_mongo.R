@@ -399,7 +399,8 @@ mg_settings_get <- function(uid) {
 
 mg_settings_set <- function(uid, key, value) {
   s <- mongo_col("settings"); if (is.null(s)) return(invisible(NULL))
-  s$update(uf(uid), paste0('{"$set": {"', key, '": ', value, '}}'), upsert = TRUE)
+  vjson <- if (is.numeric(value)) as.character(value) else paste0('"', value, '"')
+  s$update(uf(uid), paste0('{"$set": {"', key, '": ', vjson, '}}'), upsert = TRUE)
 }
 
 

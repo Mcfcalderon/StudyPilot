@@ -25,6 +25,15 @@ ui_calendario <- function() {
                        title = "Limpiar horario base")
         ),
         div(id = "schedule_status_div"),
+
+        # Fila: inicio del ciclo (define la Semana 1)
+        div(class = "d-flex flex-wrap gap-2 align-items-center mb-2",
+          tags$small(class = "fw-bold", "🗓 Inicio del ciclo (Semana 1):"),
+          div(style = "width:160px",
+            dateInput("cycle_start", NULL, value = Sys.Date(), weekstart = 1, width = "100%")),
+          actionButton("cycle_start_save", "Guardar", class = "btn-sm btn-outline-primary"),
+          tags$small(class = "text-muted", "Ajusta al lunes de tu primera semana; define en que semana estas.")
+        ),
         tags$hr(class = "my-2"),
 
         # Fila 2: Google Calendar + Smart Scheduler

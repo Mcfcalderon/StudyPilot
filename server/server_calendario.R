@@ -16,7 +16,7 @@ horario_maestro <- reactive({
   tryCatch({
     sched_data <- tryCatch(mg_schedule_get(uid()), error = function(e) data.frame())
     cw <- rv$cal_week
-    week_start <- SEMESTER_START + (cw - 1) * 7
+    week_start <- get_semester_start() + (cw - 1) * 7
     df_pdf <- pdf_schedule_to_events(sched_data, week_start)
     message("[HM] Step1 PDF: ", nrow(df_pdf), " events")
 
@@ -104,7 +104,7 @@ output$visual_calendar <- renderUI({
     }
 
     cw <- rv$cal_week
-    week_start <- SEMESTER_START + (cw - 1) * 7
+    week_start <- get_semester_start() + (cw - 1) * 7
     today <- Sys.Date()
     day_names <- c("DOM", "LUN", "MAR", "MIE", "JUE", "VIE", "SAB")
     first_hour <- CAL_FIRST_HOUR; last_hour <- CAL_LAST_HOUR
@@ -304,7 +304,7 @@ output$visual_calendar <- renderUI({
 # ====================================================================
 output$cal_week_label <- renderUI({
   w <- rv$cal_week
-  ws <- SEMESTER_START + (w - 1) * 7
+  ws <- get_semester_start() + (w - 1) * 7
   we <- ws + 6
   tags$h5(class = "mb-0 fw-bold",
     paste0(format(ws, "%d %b"), " - ", format(we, "%d %b %Y"))
@@ -317,7 +317,7 @@ output$cal_week_label <- renderUI({
 observeEvent(input$cal_prev, { rv$cal_week <- rv$cal_week - 1 })
 observeEvent(input$cal_next, { rv$cal_week <- rv$cal_week + 1 })
 observeEvent(input$cal_today, {
-  days_diff <- as.integer(Sys.Date() - SEMESTER_START)
+  days_diff <- as.integer(Sys.Date() - get_semester_start())
   rv$cal_week <- floor((days_diff + 1) / 7) + 1
 })
 
