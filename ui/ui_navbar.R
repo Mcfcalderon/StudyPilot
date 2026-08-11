@@ -66,7 +66,7 @@ ui_navbar <- function() {
     nav_item(
       tags$span(class = "navbar-text text-white",
         tags$span(class = "d-none d-md-inline", style = "font-size:0.82rem;opacity:0.9",
-          paste0("📅 ", format(Sys.Date(), "%A %d %b %Y"), "  ·  📍 Semana ", current_week(), "/", TOTAL_WEEKS)
+          uiOutput("navbar_week_label", inline = TRUE)
         )
       )
     )

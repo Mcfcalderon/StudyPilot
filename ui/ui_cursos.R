@@ -32,9 +32,9 @@ ui_cursos <- function() {
     # ---- Delete course ----
     div(class = "d-flex flex-wrap gap-2 align-items-end mt-2",
       div(style = "min-width:200px",
-        selectInput("del_course_id", "Eliminar curso:", choices = NULL, width = "100%")
+        selectInput("del_course_id", "Eliminar curso(s):", choices = NULL, width = "100%", multiple = TRUE)
       ),
-      div(actionButton("del_course_btn", "Eliminar", class = "btn-sm btn-outline-danger"))
+      div(actionButton("del_course_btn", "Eliminar seleccionados", class = "btn-sm btn-outline-danger"))
     ),
 
     # ---- Crear Curso desde Silabo (IA) ----

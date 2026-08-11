@@ -148,3 +148,11 @@ output$esta_semana_card <- renderUI({
     )
   )
 })
+
+# Etiqueta de fecha/semana del navbar (reactiva -> refleja la fecha de ciclo del usuario)
+output$navbar_week_label <- renderUI({
+  rv$refresh
+  HTML(paste0("📅 ", format(Sys.Date(), "%A %d %b %Y"),
+              "  ·  📍 Semana ", current_week(), "/", TOTAL_WEEKS))
+})
+

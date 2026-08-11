@@ -116,10 +116,10 @@ observeEvent(input$add_course_btn, {
 })
 
 observeEvent(input$del_course_btn, {
-  cid <- input$del_course_id
-  if (is.null(cid) || nchar(cid) == 0) return()
+  cids <- input$del_course_id
+  if (is.null(cids) || length(cids) == 0) return()
   tryCatch({
-    mg_custom_course_delete(uid(), cid)
+    for (cid in cids) mg_custom_course_delete(uid(), cid)
     db_courses <- tryCatch(mg_custom_courses_get(uid()), error = function(e) data.frame())
     if (nrow(db_courses) > 0) {
       assign("courses", tibble::as_tibble(db_courses), envir = globalenv())
@@ -128,7 +128,7 @@ observeEvent(input$del_course_btn, {
         credits = integer(), professor = character(), formula = character(),
         eval_day = integer(), color = character()), envir = globalenv())
     }
-    showNotification(paste0("Curso \"", cid, "\" eliminado"), type = "warning")
+    showNotification(paste0(length(cids), " curso(s) eliminado(s)"), type = "warning")
     rv$refresh <- rv$refresh + 1
   }, error = function(e) showNotification(paste0("Error: ", e$message), type = "error"))
 })

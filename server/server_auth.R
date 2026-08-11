@@ -206,7 +206,7 @@ observeEvent(auth_user(), {
     session$userData$pass_grade(if (length(pg) && !is.na(pg)) pg else PASS_GRADE)
     updateSelectInput(session, "pass_grade_sel", selected = session$userData$pass_grade())
     ssd <- tryCatch(as.Date(st$semester_start), error = function(e) NA)
-    session$userData$semester_start(if (length(ssd) && !is.na(ssd)) ssd else SEMESTER_START)
+    session$userData$semester_start(if (length(ssd) && !is.na(ssd)) ssd else session$userData$semester_start())
     updateDateInput(session, "cycle_start", value = session$userData$semester_start())
   }, error = function(e) session$userData$pass_grade(PASS_GRADE))
 

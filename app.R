@@ -31,7 +31,8 @@ server <- function(input, output, session) {
   # Umbral de aprobacion POR SESION (no global): cada usuario tiene el suyo
   session$userData$pass_grade <- reactiveVal(PASS_GRADE)
   # Fecha de inicio del ciclo POR SESION (configurable/persistente)
-  session$userData$semester_start <- reactiveVal(SEMESTER_START)
+  .lunes_actual <- Sys.Date() - (as.integer(format(Sys.Date(), "%u")) - 1)  # lunes de esta semana
+  session$userData$semester_start <- reactiveVal(.lunes_actual)
   uid <- reactive({ req(auth_user()); auth_user()$user })
 
   rv <- reactiveValues(
