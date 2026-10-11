@@ -59,11 +59,11 @@ observeEvent(input$login_btn, {
   auth_msg("login_msg_div", "Verificando credenciales...", "loading")
 
   # Check hardcoded users first
-  match <- hardcoded_users[hardcoded_users$user == user & hardcoded_users$password == pass, ]
-  if (nrow(match) > 0) {
-    auth_msg("login_msg_div", paste0("¡Bienvenido, ", match$name[1], "!"), "success")
+  admin_name <- check_admin_login(hardcoded_users, user, pass)
+  if (!is.null(admin_name)) {
+    auth_msg("login_msg_div", paste0("¡Bienvenido, ", admin_name, "!"), "success")
     start_session(user)
-    auth_user(list(user = user, name = match$name[1]))
+    auth_user(list(user = user, name = admin_name))
     shinyjs::enable("login_btn")
     return()
   }
@@ -76,12 +76,10 @@ observeEvent(input$login_btn, {
     result <- FALSE
     if (nrow(db_users) > 0) {
       stored_pass <- db_users$password[1]
-      verified <- FALSE
-      if (grepl("^\\$7\\$", stored_pass)) {
-        verified <- tryCatch(sodium::password_verify(stored_pass, pass), error = function(e) FALSE)
-      }
-      # Legacy plaintext migration
-      if (!verified && stored_pass == pass) {
+      verified <- verify_password(stored_pass, pass)
+      # Migracion de contraseñas antiguas en texto plano (solo si lo guardado NO es un hash;
+      # antes el propio hash funcionaba como contraseña)
+      if (!verified && !is_password_hash(stored_pass) && identical(stored_pass, pass)) {
         verified <- TRUE
         hashed <- sodium::password_store(pass)
         mg_user_set_password(user, hashed)

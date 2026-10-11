@@ -60,14 +60,8 @@ server <- function(input, output, session) {
     results = NULL, loading = FALSE, error_msg = NULL
   )
 
-  hardcoded_users <- {
-    raw <- Sys.getenv("STUDYPILOT_ADMIN_USERS")
-    if (nchar(raw) > 0) {
-      parts <- strsplit(trimws(strsplit(raw, ",")[[1]]), ":")
-      data.frame(user = sapply(parts, `[`, 1), password = sapply(parts, `[`, 2),
-                 name = sapply(parts, `[`, 3), stringsAsFactors = FALSE)
-    } else data.frame(user = character(), password = character(), name = character(), stringsAsFactors = FALSE)
-  }
+  # Admins: usuario:HASH:Nombre (ver R/auth_passwords.R y tools/hash_password.R)
+  hardcoded_users <- parse_admin_users(Sys.getenv("STUDYPILOT_ADMIN_USERS"))
 
   save_ai_blocks_mongo <- function() {
     tryCatch(mg_ai_blocks_set(uid(), rv_gcal$ai_blocks),
