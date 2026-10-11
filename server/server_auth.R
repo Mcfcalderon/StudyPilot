@@ -4,6 +4,19 @@
 # Formato valido de nombre de usuario (el mismo del registro)
 valid_username <- function(u) is.character(u) && length(u) == 1 && grepl("^[a-zA-Z0-9._]{3,40}$", u)
 
+# Token de la sesion actual (para poder revocarlo al cerrar sesion)
+session_token <- reactiveVal(NULL)
+
+# Crea una sesion en BD y guarda SOLO el token aleatorio en el navegador
+start_session <- function(user) {
+  tryCatch({
+    ensure_init()
+    tok <- mg_session_create(user)
+    session_token(tok)
+    session$sendCustomMessage("save_session", list(token = tok))
+  }, error = function(e) message("[StudyPilot] No se pudo crear la sesion: ", e$message))
+}
+
 # Helper: update auth message divs
 auth_msg <- function(div_id, text, type = "error") {
   cls <- switch(type, error = "auth-msg error", success = "auth-msg success", loading = "auth-msg")
@@ -37,18 +50,19 @@ observeEvent(input$login_btn, {
     return()
   }
 
-  shinyjs::disable("login_btn")
-  auth_msg("login_msg_div", "Verificando credenciales...", "loading")
-
   if (!valid_username(user)) {
     auth_msg("login_msg_div", "Usuario o contraseña incorrectos.")
     return()
   }
 
+  shinyjs::disable("login_btn")
+  auth_msg("login_msg_div", "Verificando credenciales...", "loading")
+
   # Check hardcoded users first
   match <- hardcoded_users[hardcoded_users$user == user & hardcoded_users$password == pass, ]
   if (nrow(match) > 0) {
     auth_msg("login_msg_div", paste0("¡Bienvenido, ", match$name[1], "!"), "success")
+    start_session(user)
     auth_user(list(user = user, name = match$name[1]))
     shinyjs::enable("login_btn")
     return()
@@ -75,6 +89,7 @@ observeEvent(input$login_btn, {
       }
       if (verified) {
         auth_msg("login_msg_div", paste0("¡Bienvenido, ", db_users$name[1], "!"), "success")
+        start_session(user)
         auth_user(list(user = user, name = db_users$name[1]))
         result <- TRUE
       }
@@ -142,14 +157,9 @@ observeEvent(input$register_btn, {
 observeEvent(input$auto_login, {
   req(is.null(auth_user()))
   al <- input$auto_login
-  if (is.null(al) || !valid_username(al$user)) {
-    shinyjs::runjs("$('#login_form_container').fadeIn(200);")
-    return()
-  }
-
-  expected_token <- digest::digest(paste0(al$user, "_studypilot_session"), algo = "md5")
-  if (!identical(al$token, expected_token)) {
-    message("[StudyPilot] Auto-login: invalid token for ", al$user)
+  tok <- if (is.list(al)) al$token else NULL
+  # Tokens viejos (md5 predecible) o con formato invalido: pedir contraseña
+  if (!session_token_valid_format(tok)) {
     session$sendCustomMessage("clear_session", list())
     shinyjs::runjs("$('#login_form_container').fadeIn(200);")
     return()
@@ -158,24 +168,22 @@ observeEvent(input$auto_login, {
   login_ok <- FALSE
   tryCatch({
     ensure_init()
-    db_users <- mg_user_find(al$user)
-    if (nrow(db_users) > 0) {
-      auth_user(list(user = al$user, name = db_users$name[1]))
+    user <- mg_session_user(tok)
+    if (!is.null(user)) {
+      db_users <- mg_user_find(user)
+      match <- hardcoded_users[hardcoded_users$user == user, ]
+      name <- if (nrow(db_users) > 0) db_users$name[1] else if (nrow(match) > 0) match$name[1] else user
+      session_token(tok)
+      auth_user(list(user = user, name = name))
       login_ok <- TRUE
-    } else {
-      match <- hardcoded_users[hardcoded_users$user == al$user, ]
-      if (nrow(match) > 0) {
-        auth_user(list(user = al$user, name = match$name[1]))
-        login_ok <- TRUE
-      }
     }
   }, error = function(e) message("[StudyPilot] Auto-login error: ", e$message))
 
   if (login_ok) {
-    message("[StudyPilot] Auto-login SUCCESS: ", al$user)
+    message("[StudyPilot] Auto-login SUCCESS: ", auth_user()$user)
     shinyjs::hide("auth_overlay", anim = TRUE, animType = "fade")
     shinyjs::show("main_app", anim = TRUE, animType = "fade")
-    if (!is.null(al$tab) && nchar(al$tab) > 0) {
+    if (is.character(al$tab) && length(al$tab) == 1 && nchar(al$tab) > 0) {
       session$onFlushed(function() {
         bslib::nav_select("main_nav", selected = al$tab)
       }, once = TRUE)
@@ -191,10 +199,6 @@ observeEvent(auth_user(), {
   req(auth_user())
   shinyjs::hide("auth_overlay", anim = TRUE, animType = "fade")
   shinyjs::show("main_app", anim = TRUE, animType = "fade")
-
-  # Save session to localStorage
-  token <- digest::digest(paste0(uid(), "_studypilot_session"), algo = "md5")
-  session$sendCustomMessage("save_session", list(user = uid(), token = token))
 
   ensure_init()
 
@@ -277,6 +281,8 @@ observeEvent(auth_user(), {
 
 # ============ LOGOUT ============
 observeEvent(input$logout_btn, {
+  tryCatch(mg_session_delete(session_token()), error = function(e) NULL)
+  session_token(NULL)
   auth_user(NULL)
   rv_gcal$events <- NULL
   rv_gcal$ai_blocks <- NULL

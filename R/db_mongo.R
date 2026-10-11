@@ -216,6 +216,35 @@ mg_user_exists <- function(username) {
   u$count(mq(user = q_str(username))) > 0
 }
 
+# ============ SESSIONS (auto-login; ver R/auth_session.R) ============
+# Crea una sesion y devuelve el token en claro (solo para el navegador).
+mg_session_create <- function(user) {
+  s <- mongo_col("sessions")
+  if (is.null(s)) stop("Base de datos no disponible")
+  token <- session_token_new()
+  now <- Sys.time()
+  s$insert(data.frame(token_hash = session_token_hash(token), user = q_str(user),
+                      created_at = now, expires_at = session_expiry(now),
+                      stringsAsFactors = FALSE))
+  token
+}
+
+# Usuario dueno del token, o NULL si no existe / expiro / formato invalido.
+mg_session_user <- function(token) {
+  if (!session_token_valid_format(token)) return(NULL)
+  s <- mongo_col("sessions")
+  if (is.null(s)) return(NULL)
+  r <- s$find(mq(token_hash = session_token_hash(token)), limit = 1)
+  if (nrow(r) == 0 || !session_is_valid(r$expires_at[1])) return(NULL)
+  r$user[1]
+}
+
+mg_session_delete <- function(token) {
+  if (!session_token_valid_format(token)) return(invisible(NULL))
+  s <- mongo_col("sessions")
+  if (!is.null(s)) s$remove(mq(token_hash = session_token_hash(token)))
+}
+
 # ============ SYLLABI ============
 mg_syllabus_add <- function(uid, course_id, filename, content) {
   s <- mongo_col("syllabi")

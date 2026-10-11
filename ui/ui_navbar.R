@@ -106,9 +106,8 @@ ui_navbar <- function() {
             _spReady = true;
             Shiny.addCustomMessageHandler('save_session', function(d) {
               try {
-                localStorage.setItem('sp_user', d.user);
+                localStorage.removeItem('sp_user');
                 localStorage.setItem('sp_token', d.token);
-                console.log('[SP] Session SAVED:', d.user);
               } catch(e) { console.error('[SP] save err:', e); }
             });
             Shiny.addCustomMessageHandler('clear_session', function(d) {
@@ -137,14 +136,12 @@ ui_navbar <- function() {
             });
             console.log('[SP] Handlers registered (inline)');
           }
-          var u = localStorage.getItem('sp_user');
           var t = localStorage.getItem('sp_token');
           var tab = localStorage.getItem('sp_active_tab');
-          if (u && t) {
+          if (t) {
             $('#login_form_container').hide();
             setTimeout(function() {
-              console.log('[SP] Sending auto_login for:', u);
-              Shiny.setInputValue('auto_login', {user:u, token:t, tab:tab||''}, {priority:'event'});
+              Shiny.setInputValue('auto_login', {token:t, tab:tab||''}, {priority:'event'});
             }, 500);
           } else {
             var fc = document.getElementById('login_form_container');
