@@ -30,15 +30,25 @@ if (requireNamespace("blastula", quietly = TRUE)) library(blastula)
   }
   keys
 }
-.gemini_keys <- .load_gemini_keys()
+# El pool se arma en el PRIMER uso, no al cargar el archivo: Shiny carga R/ antes de
+# que app.R lea app_env, y en ese momento las claves aun no estan en el entorno.
+.gemini_state <- new.env(parent = emptyenv())
+gemini_keys <- function() {
+  k <- .gemini_state$keys
+  if (is.null(k) || identical(k, "PLACEHOLDER_KEY")) {
+    k <- .load_gemini_keys()
+    .gemini_state$keys <- k
+    message("[StudyPilot] Pool de claves Gemini cargado: ", length(k), " clave(s)")
+  }
+  k
+}
 assign(".gemini_key_idx", 1L, envir = globalenv())
-message("[StudyPilot] Pool de claves Gemini cargado: ", length(.gemini_keys), " clave(s)")
 
 get_gemini <- function(model = "gemini-2.5-flash") {
   idx <- get0(".gemini_key_idx", envir = globalenv(), ifnotfound = 1L)
-  if (idx < 1 || idx > length(.gemini_keys)) idx <- 1L
-  key <- .gemini_keys[idx]
-  message("[StudyPilot] Gemini key #", idx, "/", length(.gemini_keys))
+  if (idx < 1 || idx > length(gemini_keys())) idx <- 1L
+  key <- gemini_keys()[idx]
+  message("[StudyPilot] Gemini key #", idx, "/", length(gemini_keys()))
   Sys.setenv(GOOGLE_API_KEY = key)
   chat_google_gemini(model = model)
 }
@@ -46,7 +56,7 @@ get_gemini <- function(model = "gemini-2.5-flash") {
 # Rotate to next key (called on 429 errors)
 rotate_key <- function() {
   idx <- get0(".gemini_key_idx", envir = globalenv(), ifnotfound = 1L)
-  new_idx <- (idx %% length(.gemini_keys)) + 1L
+  new_idx <- (idx %% length(gemini_keys())) + 1L
   assign(".gemini_key_idx", new_idx, envir = globalenv())
   message("[StudyPilot] Rotated API key to #", new_idx)
   new_idx
@@ -55,7 +65,7 @@ rotate_key <- function() {
 # Smart AI call with automatic key rotation on 429/503
 ai_call <- function(prompt) {
   last_error <- "Error desconocido"
-  for (attempt in seq_along(.gemini_keys)) {
+  for (attempt in seq_along(gemini_keys())) {
     result <- tryCatch({
       chat <- get_gemini()
       response <- chat$chat(prompt)
@@ -74,7 +84,7 @@ ai_call <- function(prompt) {
     })
     if (!is.null(result)) return(result)
   }
-  stop(paste0("Error de IA tras ", length(.gemini_keys), " intentos: ", last_error))
+  stop(paste0("Error de IA tras ", length(gemini_keys()), " intentos: ", last_error))
 }
 
 # ============ GENERATE STUDY SUMMARY FROM TEXT ============
