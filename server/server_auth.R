@@ -1,6 +1,9 @@
 # ============ server_auth.R — Login, Register, Auto-Login, Logout ============
 # Depends on: auth_user, uid, rv, rv_gcal, hardcoded_users, session
 
+# Formato valido de nombre de usuario (el mismo del registro)
+valid_username <- function(u) is.character(u) && length(u) == 1 && grepl("^[a-zA-Z0-9._]{3,40}$", u)
+
 # Helper: update auth message divs
 auth_msg <- function(div_id, text, type = "error") {
   cls <- switch(type, error = "auth-msg error", success = "auth-msg success", loading = "auth-msg")
@@ -37,6 +40,11 @@ observeEvent(input$login_btn, {
   shinyjs::disable("login_btn")
   auth_msg("login_msg_div", "Verificando credenciales...", "loading")
 
+  if (!valid_username(user)) {
+    auth_msg("login_msg_div", "Usuario o contraseña incorrectos.")
+    return()
+  }
+
   # Check hardcoded users first
   match <- hardcoded_users[hardcoded_users$user == user & hardcoded_users$password == pass, ]
   if (nrow(match) > 0) {
@@ -49,8 +57,7 @@ observeEvent(input$login_btn, {
   # Check MongoDB users with password hashing
   login_ok <- tryCatch({
     ensure_init()
-    u <- mongolite::mongo(collection = "users", url = Sys.getenv("MONGODB_URI"))
-    db_users <- u$find(paste0('{"user":"', user, '"}'))
+    db_users <- mg_user_find(user)
     message("[StudyPilot] Login: found ", nrow(db_users), " matching users")
     result <- FALSE
     if (nrow(db_users) > 0) {
@@ -63,7 +70,7 @@ observeEvent(input$login_btn, {
       if (!verified && stored_pass == pass) {
         verified <- TRUE
         hashed <- sodium::password_store(pass)
-        u$update(paste0('{"user":"', user, '"}'), paste0('{"$set":{"password":"', hashed, '"}}'))
+        mg_user_set_password(user, hashed)
         message("[StudyPilot] Migrated password to hash for: ", user)
       }
       if (verified) {
@@ -72,7 +79,6 @@ observeEvent(input$login_btn, {
         result <- TRUE
       }
     }
-    u$disconnect()
     result
   }, error = function(e) {
     message("[StudyPilot] Login error: ", e$message)
@@ -107,19 +113,14 @@ observeEvent(input$register_btn, {
   tryCatch({
     ensure_init()
     if (!.app_initialized) stop("No se pudo conectar a la base de datos.")
-    u <- mongolite::mongo(collection = "users", url = Sys.getenv("MONGODB_URI"))
-    if (u$count(paste0('{"user":"', user, '"}')) > 0) {
-      u$disconnect()
+    if (mg_user_exists(user)) {
       auth_msg("register_msg_div", "Ese usuario ya existe.")
       shinyjs::enable("register_btn")
       return()
     }
     hashed_pass <- sodium::password_store(pass)
-    u$insert(data.frame(user = user, password = hashed_pass, name = name,
-                         admin = FALSE, stringsAsFactors = FALSE))
-    saved <- u$count(paste0('{"user":"', user, '"}'))
-    u$disconnect()
-    if (saved > 0) {
+    mg_user_create(user, hashed_pass, name)
+    if (mg_user_exists(user)) {
       message("[StudyPilot] Register: '", user, "' saved to MongoDB")
       auth_msg("register_msg_div",
         paste0("\u2705 Cuenta creada. Inicia sesión con <b>", user, "</b>."), "success")
@@ -141,7 +142,7 @@ observeEvent(input$register_btn, {
 observeEvent(input$auto_login, {
   req(is.null(auth_user()))
   al <- input$auto_login
-  if (is.null(al) || is.null(al$user) || nchar(al$user) == 0) {
+  if (is.null(al) || !valid_username(al$user)) {
     shinyjs::runjs("$('#login_form_container').fadeIn(200);")
     return()
   }
@@ -157,9 +158,7 @@ observeEvent(input$auto_login, {
   login_ok <- FALSE
   tryCatch({
     ensure_init()
-    u <- mongolite::mongo(collection = "users", url = Sys.getenv("MONGODB_URI"))
-    db_users <- u$find(paste0('{"user":"', al$user, '"}'))
-    u$disconnect()
+    db_users <- mg_user_find(al$user)
     if (nrow(db_users) > 0) {
       auth_user(list(user = al$user, name = db_users$name[1]))
       login_ok <- TRUE
