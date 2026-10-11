@@ -142,17 +142,19 @@ assign("courses", courses, envir = globalenv())
 
 ensure_init <- function() {
   if (isTRUE(get0(".app_initialized", envir = globalenv()))) return(invisible(TRUE))
+  if (nchar(Sys.getenv("MONGODB_URI")) == 0) {
+    message("[StudyPilot] ensure_init: MONGODB_URI empty"); return(invisible(FALSE))
+  }
   tryCatch({
-    # Direct connection (bypass mongo_col which checks .app_initialized)
-    uri <- Sys.getenv("MONGODB_URI")
-    if (nchar(uri) == 0) { message("[StudyPilot] ensure_init: MONGODB_URI empty"); return(invisible(FALSE)) }
-    test <- mongolite::mongo(collection = "users", url = uri)
-    test$count()
+    # La conexion de prueba queda en el pool y se reutiliza despues
     assign(".app_initialized", TRUE, envir = globalenv())
+    mongo_col("users")$count()
+    ensure_indexes()
     message("[StudyPilot] MongoDB initialized OK")
-    test$disconnect()
     invisible(TRUE)
   }, error = function(e) {
+    assign(".app_initialized", FALSE, envir = globalenv())
+    pool_reset()
     message("[StudyPilot] ensure_init FAILED: ", e$message)
     invisible(FALSE)
   })

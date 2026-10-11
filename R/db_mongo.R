@@ -4,23 +4,32 @@
 # nunca armar JSON con paste0 sobre texto del usuario.
 library(mongolite)
 
-# URI is read fresh via Sys.getenv("MONGODB_URI") at each connection
+mongo_connect <- function(collection) {
+  mongolite::mongo(collection = collection, url = Sys.getenv("MONGODB_URI"))
+}
 
-# Helper: get a collection connection with reuse (returns NULL if not initialized)
-.mongo_cache <- new.env(parent = emptyenv())
-
+# Coleccion con conexion reutilizable (ver R/db_pool.R). NULL si la BD no esta inicializada.
 mongo_col <- function(collection) {
   if (!isTRUE(get0(".app_initialized", envir = globalenv()))) return(NULL)
-  # Reuse existing connection if alive
-  if (exists(collection, envir = .mongo_cache)) {
-    conn <- get(collection, envir = .mongo_cache)
-    # Test if connection is still alive
-    alive <- tryCatch({ conn$count(); TRUE }, error = function(e) FALSE)
-    if (alive) return(conn)
+  pool_collection(collection, mongo_connect)
+}
+
+# Indices (idempotente; se llama una vez por proceso desde ensure_init)
+ensure_indexes <- function() {
+  mk <- function(coll, name, key, extra = list()) {
+    cmd <- mq(createIndexes = coll,
+              indexes = list(c(list(key = key, name = name), extra)))
+    tryCatch(mongo_col(coll)$run(cmd),
+             error = function(e) message("[StudyPilot] Indice ", coll, ".", name, " no creado: ", conditionMessage(e)))
   }
-  conn <- mongolite::mongo(collection = collection, url = Sys.getenv("MONGODB_URI"))
-  assign(collection, conn, envir = .mongo_cache)
-  conn
+  mk("users", "user_unique", list(user = 1L), list(unique = TRUE))
+  mk("sessions", "token_hash_unique", list(token_hash = 1L), list(unique = TRUE))
+  mk("sessions", "expires_ttl", list(expires_at = 1L), list(expireAfterSeconds = 0L))
+  for (coll in c("grades", "activities", "study_notes", "courses", "syllabi", "exam_checks",
+                 "pomo_sessions", "schedules", "cal_overrides", "cal_hidden", "ai_blocks",
+                 "settings", "usage_events"))
+    mk(coll, "user_id_1", list(user_id = 1L))
+  invisible(TRUE)
 }
 
 # ============ GRADES ============
