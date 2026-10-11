@@ -27,12 +27,14 @@ cat("\n")
 rsconnect::deployApp(
   appDir       = getwd(),
   appFiles     = app_files,
+  # App en produccion: https://studypilot.shinyapps.io/plataforma/ (appId fijo para no crear otra)
   appName      = "plataforma",
+  appId        = 17534798,
   appTitle     = "StudyPilot",
-  account      = "marvin-calderon",
+  account      = "studypilot",
   server       = "shinyapps.io",
   forceUpdate  = TRUE,
-  launch.browser = TRUE,
+  launch.browser = interactive(),
   lint         = FALSE
 )
 
