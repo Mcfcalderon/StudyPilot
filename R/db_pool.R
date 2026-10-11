@@ -27,6 +27,12 @@ pool_get <- function(collection, connect) {
 }
 
 pool_call <- function(collection, method, connect, ...) {
+  # Diagnostico opcional: options(studypilot.db_trace = TRUE) registra cada consulta y su tiempo
+  if (isTRUE(getOption("studypilot.db_trace"))) {
+    t0 <- Sys.time()
+    on.exit(message(sprintf("[DB] %s.%s %.0f ms", collection, method,
+                            as.numeric(difftime(Sys.time(), t0, units = "secs")) * 1000)), add = TRUE)
+  }
   tryCatch(
     pool_get(collection, connect)[[method]](...),
     error = function(e) {
