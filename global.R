@@ -99,11 +99,6 @@ courses <- tibble::tibble(
   eval_day = integer(), color = character()
 )
 
-evaluations <- tibble::tibble(
-  course_id = character(), code = character(), label = character(),
-  weight = numeric(), week = integer(), type = character(), grade = numeric()
-)
-
 course_topics <- list()
 
 # ---- Estado POR SESION (evita fuga de datos entre usuarios en shinyapps.io) ----
@@ -161,21 +156,6 @@ ensure_init <- function() {
 }
 
 # ============ HELPER FUNCTIONS ============
-calc_course_avg <- function(cid) {
-  g <- mg_grades_course(cid)
-  evals <- evaluations |> filter(course_id == cid) |> select(code, weight)
-  if (nrow(g) == 0) return(list(partial = 0, pct_graded = 0, earned = 0, needed = NA, remaining = 100))
-  merged <- evals |> left_join(g |> rename(actual_grade = grade), by = "code")
-  graded <- merged |> filter(!is.na(actual_grade))
-  earned <- sum(graded$actual_grade * graded$weight / 100, na.rm = TRUE)
-  pct_graded <- sum(graded$weight, na.rm = TRUE)
-  partial <- if (pct_graded > 0) earned / (pct_graded / 100) else 0
-  remaining <- 100 - pct_graded
-  needed <- if (remaining > 0) (10.5 - earned) / (remaining / 100) else 0
-  list(partial = round(partial, 2), pct_graded = pct_graded,
-       earned = round(earned, 2), needed = round(max(0, needed), 2), remaining = remaining)
-}
-
 render_diagram <- function(diagram_data) {
   sections <- lapply(diagram_data, function(sec) {
     items_html <- lapply(sec$items, function(item) {

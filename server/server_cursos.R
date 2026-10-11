@@ -54,8 +54,8 @@ output$course_cards <- renderUI({
     c_info <- courses[i, ]
     avg <- calc_avg_fast(c_info$id, cached)
     topics <- course_topics[[c_info$id]]
-    graded_codes <- cached$code[cached$course_id == c_info$id]
-    pending <- evaluations |> filter(course_id == c_info$id, !code %in% graded_codes)
+    # Evaluaciones aun sin nota (calculadas por compute_course_avg)
+    pending <- if (is.data.frame(avg$remaining_evals)) avg$remaining_evals else data.frame()
     col <- grade_class(avg)
 
     card(class = "mb-3", style = paste0("border-left:4px solid ", c_info$color),
@@ -75,7 +75,7 @@ output$course_cards <- renderUI({
           tags$div(class = "small fw-bold", "Pendientes:"),
           lapply(seq_len(min(nrow(pending), 4)), function(j) {
             tags$div(class = "small text-muted",
-              paste0("-> ", pending$label[j], " (", pending$weight[j], "%) S", pending$week[j]))
+              paste0("-> ", pending$name[j], " (", pending$weight[j], "%)"))
           })
         ),
         tags$details(class = "mt-2",
