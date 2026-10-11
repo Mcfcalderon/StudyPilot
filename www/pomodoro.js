@@ -74,7 +74,7 @@ function nukeShinyDisconnectUI() {
     var el = document.getElementById(id);
     if (el) el.remove();
   });
-  document.querySelectorAll('.shiny-notification, #shiny-notification-panel, .shiny-notification-panel, .modal-backdrop').forEach(function(el) {
+  document.querySelectorAll('#shiny-notification-reconnect, .modal-backdrop').forEach(function(el) {
     el.remove();
   });
   if (document.body) {
@@ -355,8 +355,9 @@ $(function() {
           if (node.nodeType !== 1) return;
           var id = node.id || '';
           var cls = (typeof node.className === 'string') ? node.className : '';
-          if (id.indexOf('disconnected') !== -1 || id.indexOf('shiny-notification') !== -1 ||
-              cls.indexOf('shiny-notification') !== -1 || cls.indexOf('modal-backdrop') !== -1) {
+          // Solo la UI de desconexion; los avisos normales (showNotification) deben verse
+          if (id.indexOf('disconnected') !== -1 || id === 'shiny-notification-reconnect' ||
+              cls.indexOf('modal-backdrop') !== -1) {
             node.remove();
           }
         });

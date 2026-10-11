@@ -1,5 +1,5 @@
 // ============ SERVICE WORKER v2 — StudyPilot PWA (App Shell + Offline) ============
-const CACHE_NAME = 'studypilot-v3';
+const CACHE_NAME = 'studypilot-v4';
 
 // Install: skip waiting to activate immediately
 self.addEventListener('install', function(event) {

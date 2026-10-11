@@ -422,12 +422,11 @@ table.dataTable tbody tr.selected { background: rgba(37,99,235,0.1) !important; 
 .chat-ai ul, .chat-ai ol { padding-left: 18px; margin-bottom: 6px; }
 
 /* ============ OPCIÓN NUCLEAR: Silenciar TODA UI de desconexión de Shiny ============ */
+/* Solo la UI de desconexion: los avisos normales (showNotification) SI deben verse */
 #shiny-disconnected-overlay,
 #shiny-reconnect-text,
-.shiny-output-error,
-#shiny-notification-panel,
-.shiny-notification,
-.shiny-notification-close {
+#shiny-notification-reconnect,
+.shiny-output-error {
   display: none !important;
   visibility: hidden !important;
   opacity: 0 !important;
@@ -445,11 +444,6 @@ html, body {
   -webkit-filter: none !important;
 }
 
-/* El recuadro gris "Attempting to reconnect" y "Disconnected from server" */
-.shiny-notification-content,
-.shiny-notification-message {
-  display: none !important;
-}
 
 /* ---- Offline Banner ---- */
 #offline-banner {
