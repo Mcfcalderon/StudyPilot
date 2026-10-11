@@ -119,9 +119,10 @@ output$grades_panels <- renderUI({
         actionButton(
           paste0("save_grades_", c_info$id), "Guardar notas",
           class = "btn-sm btn-outline-primary",
+          # course_id viene de la IA: se serializa como literal JSON (sin inyeccion de JS)
           onclick = paste0(
-            "Shiny.setInputValue(\'save_grade_course\', \'",
-            c_info$id, "\', {priority: \'event\'})")),
+            "Shiny.setInputValue('save_grade_course', ",
+            jsonlite::toJSON(c_info$id, auto_unbox = TRUE), ", {priority: 'event'})")),
         tags$span(id = paste0("grade_spinner_", c_info$id))
       )
     )

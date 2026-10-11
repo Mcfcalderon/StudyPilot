@@ -49,3 +49,26 @@ check_admin_login <- function(admins, user, pass) {
   i <- which(admins$user == user)
   if (length(i) == 1 && verify_password(admins$password[i], pass)) admins$name[i] else NULL
 }
+
+# ---- Limite de intentos de login (por usuario, compartido entre sesiones del proceso) ----
+LOGIN_MAX_FAILS <- 5
+LOGIN_WINDOW_SEC <- 600
+.login_fail_store <- new.env(parent = emptyenv())
+
+.recent_fails <- function(store, user, now) {
+  t <- get0(user, envir = store, inherits = FALSE)
+  if (is.null(t)) return(numeric(0))
+  t[t > as.numeric(now) - LOGIN_WINDOW_SEC]
+}
+
+login_blocked <- function(user, now = Sys.time(), store = .login_fail_store) {
+  length(.recent_fails(store, user, now)) >= LOGIN_MAX_FAILS
+}
+
+login_fail_record <- function(user, now = Sys.time(), store = .login_fail_store) {
+  assign(user, c(.recent_fails(store, user, now), as.numeric(now)), envir = store)
+}
+
+login_fail_clear <- function(user, store = .login_fail_store) {
+  if (exists(user, envir = store, inherits = FALSE)) rm(list = user, envir = store)
+}

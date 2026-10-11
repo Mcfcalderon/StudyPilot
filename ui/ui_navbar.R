@@ -24,7 +24,7 @@ ui_navbar <- function() {
       tags$link(rel = "stylesheet", href = paste0("custom.css?v=", format(Sys.time(), "%Y%m%d%H%M"))),
       tags$script(src = "pomodoro.js"),
       tags$script(src = "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"),
-      tags$script(HTML("mermaid.initialize({startOnLoad:false, theme:'default', securityLevel:'loose'});"))
+      tags$script(HTML("mermaid.initialize({startOnLoad:false, theme:'default', securityLevel:'strict'});"))
     ),
     id = "main_nav",
     bg = "#2563eb",

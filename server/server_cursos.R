@@ -277,7 +277,7 @@ observeEvent(input$syllabus_extract_btn, {
         result <- ai_extract_syllabus(text)
         if (!is.null(result$error)) {
           shinyjs::html("syllabus_status_div",
-            paste0('<div class="alert alert-danger py-2 small">', result$error, '</div>'))
+            paste0('<div class="alert alert-danger py-2 small">', esc(result$error), '</div>'))
           shinyjs::enable("syllabus_extract_btn")
           return()
         }
@@ -291,24 +291,24 @@ observeEvent(input$syllabus_extract_btn, {
         if (!is.null(evals) && is.data.frame(evals)) {
           for (i in seq_len(nrow(evals))) {
             eval_rows <- paste0(eval_rows,
-              '<tr><td>', evals$nombre[i], '</td><td>', evals$codigo[i],
-              '</td><td>', evals$peso[i], '%</td><td>S', evals$semana[i],
-              '</td><td>', evals$tipo[i], '</td></tr>')
+              '<tr><td>', esc(evals$nombre[i]), '</td><td>', esc(evals$codigo[i]),
+              '</td><td>', esc(evals$peso[i]), '%</td><td>S', esc(evals$semana[i]),
+              '</td><td>', esc(evals$tipo[i]), '</td></tr>')
           }
         }
         temas_html <- ""
         if (!is.null(result$temas)) {
           temas_html <- paste0('<ul class="small mb-0">',
-            paste0('<li>', result$temas, '</li>', collapse = ""), '</ul>')
+            paste0('<li>', esc(result$temas), '</li>', collapse = ""), '</ul>')
         }
         preview_html <- paste0(
           '<div class="card shadow-sm"><div class="card-body py-3">',
           '<h6 class="fw-bold mb-1">',
-            ifelse(is.null(result$nombre_curso), "Curso", result$nombre_curso), '</h6>',
+            esc(if (is.null(result$nombre_curso)) "Curso" else result$nombre_curso), '</h6>',
           '<div class="small text-muted mb-2">',
-            'Codigo: <b>', ifelse(is.null(result$codigo), "---", result$codigo), '</b> | ',
-            'Creditos: <b>', ifelse(is.null(result$creditos), "---", result$creditos), '</b> | ',
-            'Profesor: <b>', ifelse(is.null(result$profesor), "---", result$profesor), '</b>',
+            'Codigo: <b>', esc(if (is.null(result$codigo)) "---" else result$codigo), '</b> | ',
+            'Creditos: <b>', esc(if (is.null(result$creditos)) "---" else result$creditos), '</b> | ',
+            'Profesor: <b>', esc(if (is.null(result$profesor)) "---" else result$profesor), '</b>',
           '</div>',
           if (nchar(eval_rows) > 0) paste0(
             '<b class="small">Evaluaciones:</b>',
@@ -324,7 +324,7 @@ observeEvent(input$syllabus_extract_btn, {
         shinyjs::enable("syllabus_cancel")
       }, error = function(e) {
         shinyjs::html("syllabus_status_div",
-          paste0('<div class="alert alert-danger py-2 small">Error: ', e$message, '</div>'))
+          paste0('<div class="alert alert-danger py-2 small">Error: ', esc(e$message), '</div>'))
       })
       shinyjs::enable("syllabus_extract_btn")
     }, once = TRUE)
@@ -387,7 +387,7 @@ observeEvent(input$syllabus_extract_btn, {
     rv$refresh <- isolate(rv$refresh) + 1
 
     error_html <- if (fail > 0) paste0('<br><small class="text-muted">Errores:<br>',
-      paste0("- ", errors, collapse = "<br>"), '</small>') else ""
+      paste0("- ", esc(errors), collapse = "<br>"), '</small>') else ""
 
     shinyjs::html("syllabus_status_div", paste0(
       '<div class="alert ',
@@ -426,11 +426,11 @@ observeEvent(input$syllabus_confirm, {
     output$syllabus_preview <- renderUI(NULL)
     shinyjs::hide("syllabus_confirm_div")
     shinyjs::html("syllabus_status_div",
-      paste0('<div class="alert alert-success py-2 small">Curso <b>', saved$cname,
+      paste0('<div class="alert alert-success py-2 small">Curso <b>', esc(saved$cname),
              '</b> creado con ', saved$n_evals, ' evaluaciones.</div>'))
   }, error = function(e) {
     shinyjs::html("syllabus_status_div",
-      paste0('<div class="alert alert-danger py-2 small">Error: ', e$message, '</div>'))
+      paste0('<div class="alert alert-danger py-2 small">Error: ', esc(e$message), '</div>'))
     shinyjs::enable("syllabus_confirm")
     shinyjs::enable("syllabus_cancel")
   })

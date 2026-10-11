@@ -206,10 +206,7 @@ output$chat_display <- renderUI({
   msg_divs <- lapply(msgs, function(m) {
     cls <- if (m$role == "user") "chat-msg chat-user" else "chat-msg chat-ai"
     if (m$role == "ai") {
-      tags$div(class = cls, HTML(tryCatch(
-        markdown::markdownToHTML(text = m$text, fragment.only = TRUE),
-        error = function(e) m$text
-      )))
+      tags$div(class = cls, safe_md(m$text))
     } else {
       tags$div(class = cls, m$text)
     }

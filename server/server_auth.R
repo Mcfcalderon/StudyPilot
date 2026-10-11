@@ -54,6 +54,10 @@ observeEvent(input$login_btn, {
     auth_msg("login_msg_div", "Usuario o contraseña incorrectos.")
     return()
   }
+  if (login_blocked(user)) {
+    auth_msg("login_msg_div", "Demasiados intentos fallidos. Espera 10 minutos e intenta de nuevo.")
+    return()
+  }
 
   shinyjs::disable("login_btn")
   auth_msg("login_msg_div", "Verificando credenciales...", "loading")
@@ -61,7 +65,8 @@ observeEvent(input$login_btn, {
   # Check hardcoded users first
   admin_name <- check_admin_login(hardcoded_users, user, pass)
   if (!is.null(admin_name)) {
-    auth_msg("login_msg_div", paste0("¡Bienvenido, ", admin_name, "!"), "success")
+    auth_msg("login_msg_div", paste0("¡Bienvenido, ", esc(admin_name), "!"), "success")
+    login_fail_clear(user)
     start_session(user)
     auth_user(list(user = user, name = admin_name))
     shinyjs::enable("login_btn")
@@ -86,7 +91,8 @@ observeEvent(input$login_btn, {
         message("[StudyPilot] Migrated password to hash for: ", user)
       }
       if (verified) {
-        auth_msg("login_msg_div", paste0("¡Bienvenido, ", db_users$name[1], "!"), "success")
+        auth_msg("login_msg_div", paste0("¡Bienvenido, ", esc(db_users$name[1]), "!"), "success")
+        login_fail_clear(user)
         start_session(user)
         auth_user(list(user = user, name = db_users$name[1]))
         result <- TRUE
@@ -99,7 +105,10 @@ observeEvent(input$login_btn, {
   })
 
   shinyjs::enable("login_btn")
-  if (!login_ok) auth_msg("login_msg_div", "Usuario o contraseña incorrectos.")
+  if (!login_ok) {
+    login_fail_record(user)
+    auth_msg("login_msg_div", "Usuario o contraseña incorrectos.")
+  }
 })
 
 # ============ REGISTER ============
@@ -109,12 +118,12 @@ observeEvent(input$register_btn, {
   pass <- input$reg_pass
   pass2 <- input$reg_pass2
 
-  if (nchar(name) < 2 || nchar(user) < 3 || nchar(pass) < 4) {
-    auth_msg("register_msg_div", "Completa todos los campos (usuario mín. 3, contraseña mín. 4).")
+  if (nchar(name) < 2 || nchar(name) > 80 || nchar(user) < 3 || nchar(pass) < 8) {
+    auth_msg("register_msg_div", "Completa todos los campos (usuario mín. 3, contraseña mín. 8).")
     return()
   }
-  if (!grepl("^[a-zA-Z0-9._]+$", user)) {
-    auth_msg("register_msg_div", "El usuario solo puede contener letras, números, puntos y guiones bajos.")
+  if (!valid_username(user)) {
+    auth_msg("register_msg_div", "El usuario solo puede contener letras, números, puntos y guiones bajos (máx. 40).")
     return()
   }
   if (pass != pass2) { auth_msg("register_msg_div", "Las contraseñas no coinciden."); return() }
@@ -146,7 +155,7 @@ observeEvent(input$register_btn, {
     }
   }, error = function(e) {
     message("[StudyPilot] Register error: ", e$message)
-    auth_msg("register_msg_div", paste0("Error: ", e$message))
+    auth_msg("register_msg_div", "No se pudo crear la cuenta. Intenta de nuevo en unos minutos.")
   })
   shinyjs::enable("register_btn")
 })

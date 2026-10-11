@@ -38,7 +38,7 @@ get_gemini <- function(model = "gemini-2.5-flash") {
   idx <- get0(".gemini_key_idx", envir = globalenv(), ifnotfound = 1L)
   if (idx < 1 || idx > length(.gemini_keys)) idx <- 1L
   key <- .gemini_keys[idx]
-  message("[StudyPilot] Gemini key #", idx, "/", length(.gemini_keys), ": ", substr(key, 1, 8), "***")
+  message("[StudyPilot] Gemini key #", idx, "/", length(.gemini_keys))
   Sys.setenv(GOOGLE_API_KEY = key)
   chat_google_gemini(model = model)
 }

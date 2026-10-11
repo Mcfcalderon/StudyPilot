@@ -46,7 +46,7 @@ observeEvent(input$schedule_extract_btn, {
       err_msg <- e$message
       if (grepl("429", err_msg)) err_msg <- "Demasiadas solicitudes al API de IA. Espera 1-2 minutos."
       shinyjs::html("schedule_status_div",
-        paste0('<div class="alert alert-danger py-1 small">', err_msg, '</div>'))
+        paste0('<div class="alert alert-danger py-1 small">', esc(err_msg), '</div>'))
     })
     shinyjs::enable("schedule_extract_btn")
   }, once = TRUE)

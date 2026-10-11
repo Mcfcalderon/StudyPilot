@@ -303,7 +303,7 @@ observeEvent(input$ai_gen_summary, {
       } else {
         mg_note_add(current_uid, cid, response, "Resumen IA")
         isolate({ rv$refresh <- rv$refresh + 1 })
-        html_response <- markdown::markdownToHTML(text = response, fragment.only = TRUE)
+        html_response <- as.character(safe_md(response))
         html_response <- gsub(
           '<pre><code class="mermaid">(.+?)</code></pre>',
           '<div class="mermaid">\\1</div>', html_response, perl = TRUE)
@@ -400,9 +400,7 @@ output$ai_processed_notes <- renderUI({
         actionButton(paste0("del_ainote_", nid), "X", class = "btn-sm btn-outline-danger py-0 px-1")
       ),
       tags$div(class = "ai-formatted p-3", style = "max-height:400px;overflow-y:auto",
-        HTML(tryCatch(
-          markdown::markdownToHTML(text = substr(n$text_content, 1, 5000), fragment.only = TRUE),
-          error = function(e) paste0("<pre>", substr(n$text_content, 1, 5000), "</pre>")))
+        safe_md(substr(n$text_content, 1, 5000))
       )
     )
   })
@@ -430,5 +428,5 @@ output$study_guide_content <- renderUI({
   guide <- get_study_guide(ex$course_id, ex$code)
   if (is.null(guide)) return(tags$p(class = "text-muted small", "Sin guia disponible para este examen."))
   tags$div(class = "ai-formatted", style = "max-height:600px;overflow-y:auto;",
-    HTML(markdown::markdownToHTML(text = guide, fragment.only = TRUE)))
+    safe_md(guide))
 })

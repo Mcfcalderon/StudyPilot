@@ -208,7 +208,7 @@ observeEvent(input$btn_gen_schedule, {
         err_msg <- "API de IA temporalmente no disponible. Espera 1 min e intenta de nuevo."
       }
       shinyjs::html("smart_sched_status",
-        paste0('<div class="alert alert-danger py-2 small">', err_msg, '</div>'))
+        paste0('<div class="alert alert-danger py-2 small">', esc(err_msg), '</div>'))
     })
     shinyjs::enable("btn_gen_schedule")
   }, once = TRUE)

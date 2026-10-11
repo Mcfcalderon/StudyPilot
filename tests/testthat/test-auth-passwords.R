@@ -26,3 +26,16 @@ test_that("check_admin_login devuelve el nombre solo con la contraseña correcta
   expect_null(check_admin_login(a, "ana", "mala"))
   expect_null(check_admin_login(a, "nadie", "secreto-admin"))
 })
+
+test_that("el login se bloquea tras 5 fallos en 10 minutos y se libera despues", {
+  st <- new.env()
+  t0 <- as.POSIXct("2026-10-11 12:00:00", tz = "UTC")
+  for (i in 1:4) login_fail_record("ana", t0 + i, store = st)
+  expect_false(login_blocked("ana", t0 + 5, store = st))
+  login_fail_record("ana", t0 + 5, store = st)
+  expect_true(login_blocked("ana", t0 + 6, store = st))
+  expect_false(login_blocked("beto", t0 + 6, store = st))
+  expect_false(login_blocked("ana", t0 + 700, store = st))
+  login_fail_clear("ana", store = st)
+  expect_false(login_blocked("ana", t0 + 6, store = st))
+})
