@@ -53,6 +53,14 @@ ui_navbar <- function() {
       style = "display:none;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;border:none;font-size:0.78rem;font-weight:600;border-radius:8px;padding:4px 12px;")
     ),
 
+    # Guía / visita guiada
+    nav_item(
+      actionLink("show_tour", label = tags$span(
+        tags$i(class = "bi bi-question-circle", style = "margin-right:4px"),
+        "Guía"
+      ), style = "color:white;opacity:0.9;font-size:0.85rem;text-decoration:none;cursor:pointer;")
+    ),
+
     # Logout
     nav_item(
       actionLink("logout_btn", label = tags$span(

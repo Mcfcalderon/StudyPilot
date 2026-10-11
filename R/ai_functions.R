@@ -206,6 +206,39 @@ ai_generate_study_guide <- function(course_name, topics, syllabus_text = NULL) {
 }
 
 # ============ EXTRACT SYLLABUS WITH AI ============
+# Extractor determinista de TEMAS desde el texto del silabo (respaldo si la IA no los devuelve).
+# Lee la seccion "N. TEMAS"/"TEMARIO"/"CONTENIDOS" y toma los temas de nivel principal.
+extract_topics_fallback <- function(text) {
+  if (is.null(text) || !nzchar(text)) return(character(0))
+  ln <- trimws(gsub("\u200b", " ", strsplit(text, "\n")[[1]]))
+  h <- grep("^\\s*\\d+\\.?\\s*(TEMAS|TEMARIO|CONTENIDOS?)\\b|^\\s*(TEMAS|TEMARIO|CONTENIDOS?)\\s*:?\\s*$",
+            ln, ignore.case = TRUE)
+  if (!length(h)) return(character(0))
+  h <- h[1]
+  sec <- suppressWarnings(as.integer(sub("^\\s*(\\d+)\\..*", "\\1", ln[h])))
+  rest <- ln[(h + 1):length(ln)]
+  keep <- character(0)
+  for (l in rest) {
+    if (grepl("^(BIBLIOGRAF|METODOLOG|SISTEMA DE EVAL|EVALUACI)", l, ignore.case = TRUE)) break
+    lead <- suppressWarnings(as.integer(sub("^\\s*(\\d+)[\\.\\s].*", "\\1", l)))
+    if (!is.na(sec) && !is.na(lead) && lead != sec && grepl("^\\s*\\d+\\.\\s+[A-Z\u00c1\u00c9\u00cd\u00d3\u00da]", l)) break
+    if (grepl("^\\s*\\d+\\.\\d+\\.\\d+", l)) next
+    if (grepl("^\\s*\\d+\\.\\d+\\s*\\S", l)) {
+      lead2 <- suppressWarnings(as.integer(sub("^\\s*(\\d+)\\..*", "\\1", l)))
+      if (is.na(sec) || is.na(lead2) || lead2 == sec) {
+        t <- trimws(sub("^\\s*\\d+\\.\\d+\\s*", "", l))
+        if (nchar(t) > 4) keep <- c(keep, t)
+      }
+      next
+    }
+    if (grepl("^(Unidad|Semana)\\s+\\d+\\s*:", l, ignore.case = TRUE)) {
+      t <- trimws(sub("^(Unidad|Semana)\\s+\\d+\\s*:\\s*", "", l, ignore.case = TRUE))
+      if (nchar(t) > 4) keep <- c(keep, t)
+    }
+  }
+  unique(keep)
+}
+
 ai_extract_syllabus <- function(syllabus_text) {
   lines <- strsplit(syllabus_text, "\n")[[1]]
 

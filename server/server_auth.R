@@ -218,7 +218,7 @@ observeEvent(auth_user(), {
   message("[StudyPilot] Post-login: ", nrow(db_courses), " courses")
   tryCatch(mg_log_event(uid(), "login"), error = function(e) NULL)
   if (nrow(db_courses) > 0) {
-    assign("courses", tibble::as_tibble(db_courses), envir = globalenv())
+    set_courses(tibble::as_tibble(db_courses))
   }
 
   # Load course topics from study_notes
@@ -235,7 +235,7 @@ observeEvent(auth_user(), {
         topic_lines <- sub("^\\d+\\.\\s*", "", topic_lines)
         if (length(topic_lines) > 0) topics_list[[cid_t]] <- topic_lines
       }
-      assign("course_topics", topics_list, envir = globalenv())
+      set_course_topics(topics_list)
       message("[StudyPilot] Loaded topics for ", length(topics_list), " courses")
     }
   }, error = function(e) message("[StudyPilot] Topics load error: ", e$message))

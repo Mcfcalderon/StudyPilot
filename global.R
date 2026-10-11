@@ -106,6 +106,36 @@ evaluations <- tibble::tibble(
 
 course_topics <- list()
 
+# ---- Estado POR SESION (evita fuga de datos entre usuarios en shinyapps.io) ----
+# Fuente de verdad: session$userData (privado por sesion). Patron identico a get_semester_start().
+.empty_courses <- function() tibble::tibble(
+  id = character(), name = character(), short = character(), credits = integer(),
+  professor = character(), formula = character(), eval_day = integer(), color = character()
+)
+.ud_get <- function(key, default) {
+  dom <- shiny::getDefaultReactiveDomain()
+  if (!is.null(dom) && !is.null(dom$userData[[key]])) {
+    v <- tryCatch({ rv <- dom$userData[[key]]; if (is.function(rv)) rv() else rv },
+                  error = function(e) NULL)
+    if (!is.null(v)) return(v)
+  }
+  default
+}
+.ud_set <- function(key, value) {
+  dom <- shiny::getDefaultReactiveDomain()
+  if (!is.null(dom)) {
+    rv <- dom$userData[[key]]
+    if (is.function(rv)) rv(value) else dom$userData[[key]] <- value
+  }
+  invisible(value)
+}
+get_courses        <- function() .ud_get("courses", .empty_courses())
+set_courses        <- function(df) .ud_set("courses", df)
+get_course_topics  <- function() .ud_get("course_topics", list())
+set_course_topics  <- function(x)  .ud_set("course_topics", x)
+get_exam_questions <- function() .ud_get("exam_questions", list())
+set_exam_questions <- function(x)  .ud_set("exam_questions", x)
+
 # ============ LAZY INIT ============
 assign(".app_initialized", FALSE, envir = globalenv())
 assign("courses", courses, envir = globalenv())

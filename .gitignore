@@ -31,3 +31,6 @@ app_old.R
 # Temporales de R
 .RDataTmp*
 .RData
+
+# Acceso directo local de Windows
+*.url

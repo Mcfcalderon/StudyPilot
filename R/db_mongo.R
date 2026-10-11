@@ -276,12 +276,13 @@ mg_pomo_add <- function(uid, cid, duration) {
 }
 
 # ============ UPDATE ACTIVITY ============
-mg_activity_update <- function(uid, act_id, name, weight, date, type = NULL, temas = NULL, is_calificada = NULL) {
+mg_activity_update <- function(uid, act_id, name, weight, date, type = NULL, temas = NULL, is_calificada = NULL, week = NULL) {
   a <- mongo_col("activities")
   if (is.null(a)) return(invisible(NULL))
   set_fields <- paste0('"name":"', name, '","weight":', as.numeric(weight), ',"date":"', date, '"')
   if (!is.null(type) && nchar(type) > 0) set_fields <- paste0(set_fields, ',"type":"', type, '"')
   if (!is.null(is_calificada)) set_fields <- paste0(set_fields, ',"is_calificada":', tolower(as.character(isTRUE(is_calificada))))
+  if (!is.null(week) && !is.na(week)) set_fields <- paste0(set_fields, ',"week":', as.integer(week))
   if (!is.null(temas)) {
     temas_json <- jsonlite::toJSON(temas, auto_unbox = FALSE)
     set_fields <- paste0(set_fields, ',"temas_vinculados":', temas_json)

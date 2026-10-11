@@ -24,7 +24,8 @@ ui_actividades <- function() {
       actionButton("act_new", "+ Nueva Actividad", class = "btn-primary"),
       actionButton("act_mark_done", "Marcar hechas", class = "btn-outline-success btn-sm"),
       actionButton("act_edit", "Editar", class = "btn-outline-secondary btn-sm"),
-      actionButton("act_delete", "Eliminar", class = "btn-outline-danger btn-sm")
+      actionButton("act_delete", "Eliminar", class = "btn-outline-danger btn-sm"),
+      actionButton("act_select_all", "Seleccionar todo", class = "btn-outline-secondary btn-sm")
     ),
 
     # ---- DataTable ----

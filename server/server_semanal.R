@@ -24,13 +24,16 @@ output$week_view <- renderUI({
   w <- rv$view_week
   day_names <- c("Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado")
   a <- acts()
+  a$WeekNum <- dplyr::coalesce(suppressWarnings(as.integer(a$week)), 0L)
 
   days <- lapply(1:6, function(d) {
     dd <- get_semester_start() + (w - 1) * 7 + (d - 1)
     is_today <- dd == Sys.Date()
     dd_str <- as.character(dd)
 
-    day_acts <- a |> filter(date == dd_str)
+    # Academicas: por semana (evaluacion el viernes, d==5). Personales: por su fecha real.
+    day_acts <- a |> filter((WeekNum > 0L & WeekNum == w & d == 5L) |
+                            (WeekNum == 0L & date == dd_str))
 
     act_items <- lapply(seq_len(nrow(day_acts)), function(i) {
       r <- day_acts[i, ]

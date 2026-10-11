@@ -108,18 +108,22 @@ build_user_context <- function() {
 
   # ---- Actividades pendientes proximas ----
   if (nrow(all_acts) > 0) {
-    pend <- all_acts[all_acts$done == 0 & !is.na(all_acts$date) &
-                     as.Date(all_acts$date) >= today, ]
+    .wk <- dplyr::coalesce(suppressWarnings(as.integer(all_acts$week)), 0L)
+    all_acts$EffDate <- dplyr::if_else(.wk > 0L, week_to_date(.wk, 5L), as.Date(all_acts$date))
+    all_acts$SemNum <- ifelse(.wk > 0L, .wk,
+                              vapply(as.character(all_acts$date), function(x) as.integer(date_to_week(x)), integer(1)))
+    pend <- all_acts[all_acts$done == 0 & !is.na(all_acts$EffDate) &
+                     all_acts$EffDate >= today, ]
     if (nrow(pend) > 0) {
-      pend <- pend[order(as.Date(pend$date)), ]
+      pend <- pend[order(pend$EffDate), ]
       pend <- pend[seq_len(min(8, nrow(pend))), ]
       ctx <- c(ctx, "", "PROXIMAS ENTREGAS/EVALUACIONES PENDIENTES:")
       for (k in seq_len(nrow(pend))) {
         r <- pend[k, ]
         cname <- if (r$course_id %in% courses$id) courses$short[courses$id == r$course_id] else r$course_id
-        dl <- as.integer(as.Date(r$date) - today)
-        ctx <- c(ctx, paste0("  - ", cname, ": ", r$name, " el ", r$date,
-                             " (en ", dl, " dias, peso ", r$weight, "%)"))
+        dl <- as.integer(r$EffDate - today)
+        ctx <- c(ctx, paste0("  - ", cname, ": ", r$name, " (Semana ", r$SemNum, ", ", r$EffDate,
+                             ", en ", dl, " dias, peso ", r$weight, "%)"))
       }
     }
   }

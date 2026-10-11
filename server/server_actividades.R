@@ -21,13 +21,20 @@ output$activities_table <- renderDT({
       Curso = ifelse(course_id == "_personal", "Personal",
                      ifelse(course_id %in% courses$id,
                             courses$short[match(course_id, courses$id)], course_id)),
-      Dias = as.integer(as.Date(date) - Sys.Date()),
-      SemanaCalc = vapply(as.character(date), function(x) as.integer(date_to_week(x)), integer(1)),
+      # Semana real: usar la del silabo (campo week); si es manual (0) derivar de la fecha
+      WeekNum = dplyr::coalesce(suppressWarnings(as.integer(week)), 0L),
+      Semana = ifelse(WeekNum > 0L, WeekNum,
+                      vapply(as.character(date), function(x) as.integer(date_to_week(x)), integer(1))),
+      # Fecha real de la actividad (editable). La columna Semana usa el campo week (sincronizado al editar).
+      FechaEff = as.Date(date),
+      # Dias que FALTAN desde hoy hasta la evaluacion
+      Dias = as.integer(FechaEff - Sys.Date()),
+      # (Semana y FechaEff ya calculadas arriba desde el campo week)
       Estado = ifelse(done == 1, "OK", ifelse(Dias < 0, "!", " ")),
       Prioridad = priority_class(weight)
     ) |>
     select(ID = act_id, Estado, Curso, Actividad = name, Tipo = type,
-           `Peso%` = weight, Semana = SemanaCalc, Fecha = date, Dias, Prioridad)
+           `Peso%` = weight, Semana, Fecha = FechaEff, Dias, Prioridad)
 
   datatable(a,
     options = list(pageLength = 15, order = list(list(8, "asc")), dom = "frtip"),
@@ -86,7 +93,7 @@ observeEvent(input$act_new, {
 output$new_act_topics_ui <- renderUI({
   cid <- input$new_act_course
   if (is.null(cid) || cid == "_personal") return(NULL)
-  ct <- get0("course_topics", envir = globalenv())
+  ct <- get_course_topics()
   topics <- if (!is.null(ct) && cid %in% names(ct)) ct[[cid]] else character(0)
   if (length(topics) == 0) return(NULL)
   selectizeInput("new_act_topics", "Temas vinculados:",
@@ -153,7 +160,7 @@ observeEvent(input$act_edit, {
   row <- af[sel[1], ]
 
   cid_edit <- row$course_id
-  ct <- get0("course_topics", envir = globalenv())
+  ct <- get_course_topics()
   available_topics <- if (!is.null(ct) && cid_edit %in% names(ct)) ct[[cid_edit]] else character(0)
   current_topics <- tryCatch(mg_activity_get_topics(uid(), row$act_id), error = function(e) character(0))
 
@@ -193,12 +200,14 @@ observeEvent(input$act_edit, {
 
 observeEvent(input$edit_act_save, {
   aid <- rv$editing_act_id
+  # Recalcular la semana a partir de la nueva fecha para mantener todo consistente
+  new_week <- tryCatch(as.integer(date_to_week(as.character(input$edit_act_date))), error = function(e) NULL)
   temas_sel <- input$edit_act_topics
   is_cal <- isTRUE(input$edit_act_calificada)
   act_weight <- if (is_cal) input$edit_act_weight else 0
   mg_activity_update(uid(), aid, input$edit_act_name, act_weight,
     as.character(input$edit_act_date), type = input$edit_act_type,
-    temas = temas_sel, is_calificada = is_cal)
+    temas = temas_sel, is_calificada = is_cal, week = new_week)
   # TRIGGER GLOBAL
   rv$refresh <- rv$refresh + 1
   removeModal()
@@ -211,6 +220,12 @@ observeEvent(input$edit_act_save, {
 # ====================================================================
 # DELETE ACTIVITIES (multiple)
 # ====================================================================
+observeEvent(input$act_select_all, {
+  af <- filtered_acts()
+  proxy <- DT::dataTableProxy("activities_table")
+  if (nrow(af) > 0) DT::selectRows(proxy, seq_len(nrow(af))) else DT::selectRows(proxy, NULL)
+})
+
 observeEvent(input$act_delete, {
   sel <- input$activities_table_rows_selected
   if (length(sel) == 0) {

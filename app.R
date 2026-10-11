@@ -33,6 +33,15 @@ server <- function(input, output, session) {
   # Fecha de inicio del ciclo POR SESION (configurable/persistente)
   .lunes_actual <- Sys.Date() - (as.integer(format(Sys.Date(), "%u")) - 1)  # lunes de esta semana
   session$userData$semester_start <- reactiveVal(.lunes_actual)
+  # Estado por-sesion (privado): cursos, temas y preguntas de examen de ESTE usuario
+  session$userData$courses        <- reactiveVal(.empty_courses())
+  session$userData$course_topics  <- reactiveVal(list())
+  session$userData$exam_questions <- reactiveVal(list())
+  # Active bindings: las lecturas de 'courses'/'course_topics'/'exam_questions' en los
+  # modulos resuelven a los datos de ESTA sesion (no al entorno global compartido).
+  makeActiveBinding("courses",        function(v) if (missing(v)) get_courses()        else set_courses(v),        environment())
+  makeActiveBinding("course_topics",  function(v) if (missing(v)) get_course_topics()  else set_course_topics(v),  environment())
+  makeActiveBinding("exam_questions", function(v) if (missing(v)) get_exam_questions() else set_exam_questions(v), environment())
   uid <- reactive({ req(auth_user()); auth_user()$user })
 
   rv <- reactiveValues(

@@ -71,7 +71,7 @@ aplicar_colores_cursos <- function(df) {
                                        !is.na(df$source) & df$source == "gcal"])
 
   # Get courses from global env
-  cursos <- tryCatch(get0("courses", envir = globalenv()), error = function(e) NULL)
+  cursos <- tryCatch(get_courses(), error = function(e) NULL)
 
   # Build name→color map from user's courses
   curso_color_map <- list()

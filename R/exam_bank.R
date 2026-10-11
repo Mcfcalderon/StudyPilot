@@ -244,7 +244,7 @@ HH5101_legacy = list(
 
 # ============ FUNCIÓN: ORGANIZAR TEXTO POR TEMAS ============
 organize_text_by_topics <- function(text, course_id) {
-  topics <- course_topics[[course_id]]
+  topics <- get_course_topics()[[course_id]]
   if (is.null(topics)) return(list())
 
   # Keywords per topic (lowercase)
@@ -302,11 +302,11 @@ organize_text_by_topics <- function(text, course_id) {
 # ============ FUNCIÓN: GENERAR EXAMEN DE PRÁCTICA ============
 generate_practice_exam <- function(course_id, n_questions = 10, type = "all") {
   message("[StudyPilot] Generating exam for: ", course_id, " (", n_questions, " questions, type=", type, ")")
-  questions <- exam_questions[[course_id]]
+  questions <- get_exam_questions()[[course_id]]
 
   # If no hardcoded questions, generate with AI using course topics
   if (is.null(questions) || length(questions) == 0) {
-    topics <- get0("course_topics", envir = globalenv())
+    topics <- get_course_topics()
     course_topics_vec <- if (!is.null(topics)) topics[[course_id]] else NULL
     message("[StudyPilot] Topics for ", course_id, ": ", length(course_topics_vec %||% character(0)))
     if (is.null(course_topics_vec) || length(course_topics_vec) == 0) {
@@ -314,7 +314,7 @@ generate_practice_exam <- function(course_id, n_questions = 10, type = "all") {
       return(NULL)
     }
 
-    c_all <- get0("courses", envir = globalenv())
+    c_all <- get_courses()
     cname <- if (!is.null(c_all) && course_id %in% c_all$id) c_all$name[c_all$id == course_id] else course_id
     topics_text <- paste(course_topics_vec, collapse = "\n- ")
     ai_n <- n_questions

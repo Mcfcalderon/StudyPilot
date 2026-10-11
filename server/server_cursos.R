@@ -122,11 +122,11 @@ observeEvent(input$del_course_btn, {
     for (cid in cids) mg_custom_course_delete(uid(), cid)
     db_courses <- tryCatch(mg_custom_courses_get(uid()), error = function(e) data.frame())
     if (nrow(db_courses) > 0) {
-      assign("courses", tibble::as_tibble(db_courses), envir = globalenv())
+      set_courses(tibble::as_tibble(db_courses))
     } else {
-      assign("courses", tibble::tibble(id = character(), name = character(), short = character(),
+      set_courses(tibble::tibble(id = character(), name = character(), short = character(),
         credits = integer(), professor = character(), formula = character(),
-        eval_day = integer(), color = character()), envir = globalenv())
+        eval_day = integer(), color = character()))
     }
     showNotification(paste0(length(cids), " curso(s) eliminado(s)"), type = "warning")
     rv$refresh <- rv$refresh + 1
@@ -217,14 +217,18 @@ guardar_curso_extraido <- function(user_id, d, syllabus_text = NULL) {
     mg_syllabus_add(user_id, cid, paste0("Silabo_", short, ".pdf"), syllabus_text)
   }
 
-  if (!is.null(d$temas) && length(d$temas) > 0) {
+  temas <- if (!is.null(d$temas) && length(d$temas) > 0) as.character(d$temas) else character(0)
+  # Respaldo: si la IA no devolvio temas, extraerlos del texto del silabo
+  if (length(temas) == 0 && !is.null(syllabus_text) && nchar(syllabus_text) > 0)
+    temas <- tryCatch(extract_topics_fallback(syllabus_text), error = function(e) character(0))
+  if (length(temas) > 0) {
     topics_text <- paste0("Temas del curso ", cname, ":\n",
-      paste(seq_along(d$temas), d$temas, sep = ". ", collapse = "\n"))
+      paste(seq_along(temas), temas, sep = ". ", collapse = "\n"))
     mg_note_add(user_id, cid, topics_text, "Temas extraidos del silabo")
-    ct <- get0("course_topics", envir = globalenv())
+    ct <- get_course_topics()
     if (is.null(ct)) ct <- list()
-    ct[[cid]] <- d$temas
-    assign("course_topics", ct, envir = globalenv())
+    ct[[cid]] <- temas
+    set_course_topics(ct)
   }
 
   list(cid = cid, cname = cname, n_evals = n_evals)
@@ -378,7 +382,7 @@ observeEvent(input$syllabus_extract_btn, {
     # Refresh courses after batch
     tryCatch({
       db_courses <- mg_custom_courses_get(current_uid)
-      if (nrow(db_courses) > 0) assign("courses", tibble::as_tibble(db_courses), envir = globalenv())
+      if (nrow(db_courses) > 0) set_courses(tibble::as_tibble(db_courses))
     }, error = function(e) NULL)
     rv$refresh <- isolate(rv$refresh) + 1
 
@@ -415,7 +419,7 @@ observeEvent(input$syllabus_confirm, {
     saved <- guardar_curso_extraido(uid(), d, rv_extract$text)
 
     db_courses <- tryCatch(mg_custom_courses_get(uid()), error = function(e) data.frame())
-    if (nrow(db_courses) > 0) assign("courses", tibble::as_tibble(db_courses), envir = globalenv())
+    if (nrow(db_courses) > 0) set_courses(tibble::as_tibble(db_courses))
     rv$refresh <- rv$refresh + 1
     rv_extract$data <- NULL
     rv_extract$text <- NULL

@@ -342,8 +342,8 @@ observeEvent(input$ai_gen_questions2, {
         shinyjs::enable("ai_gen_questions2")
         return()
       }
-      if (is.null(exam_questions[[cid]])) exam_questions[[cid]] <<- list()
-      exam_questions[[cid]] <<- c(exam_questions[[cid]], ai_qs)
+      eq <- get_exam_questions(); if (is.null(eq[[cid]])) eq[[cid]] <- list()
+      eq[[cid]] <- c(eq[[cid]], ai_qs); set_exam_questions(eq)
       output$ai_result_content <- renderUI(tags$div(
         tags$div(class = "alert alert-success py-2",
           paste0(length(ai_qs), " preguntas generadas. Ve a Examenes para usarlas.")),
