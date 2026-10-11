@@ -70,31 +70,11 @@ ui_pomodoro <- function() {
     tags$h5(class = "fw-bold mb-2 mt-3", "\U0001F4DA Guía de Estudio"),
     uiOutput("study_guide_content"),
 
-    # ---- Material IA ----
+    # ---- Material IA: vive en la pestaña Examenes (antes estaba duplicado aqui con los
+    # mismos IDs y Shiny no podia mostrar el resultado) ----
     tags$hr(),
-    tags$h5(class = "fw-bold mb-2", "\U0001F916 Material de Estudio con IA"),
-    tags$p(class = "text-muted small", "Sube un archivo y la IA genera resúmenes, conceptos clave, mapas y preguntas."),
-    layout_columns(
-      col_widths = breakpoints(sm = c(12, 12), lg = c(5, 7)),
-      div(
-        div(class = "d-flex flex-wrap gap-2 align-items-end mt-1",
-          div(style = "min-width:120px",
-            selectInput("ai_upload_course", NULL, choices = setNames(courses$id, courses$short), width = "100%")),
-          div(style = "flex:1;min-width:200px",
-            fileInput("ai_study_file", NULL, accept = c(".pdf",".docx",".xlsx",".txt",".csv"), width = "100%"))
-        ),
-        verbatimTextOutput("ai_upload_status"),
-        div(class = "d-flex gap-2 mt-1",
-          actionButton("ai_gen_summary", "\U0001F916 Resumen", class = "btn-sm btn-primary"),
-          actionButton("ai_gen_questions2", "\u2753 Preguntas", class = "btn-sm btn-outline-primary")
-        )
-      ),
-      div(uiOutput("ai_result_content"))
-    ),
-    div(class = "d-flex justify-content-between align-items-center mt-3 mb-1",
-      tags$h5(class = "fw-bold mb-0", "\U0001F4DA Material Procesado"),
-      actionButton("del_all_notes", "\U0001F5D1 Borrar todos", class = "btn-sm btn-outline-danger")
-    ),
-    uiOutput("ai_processed_notes")
+    tags$p(class = "text-muted small",
+      "\U0001F916 Para generar resúmenes, mapas y preguntas con IA desde tus apuntes, ve a la pestaña ",
+      tags$b("Examenes"), ".")
   )
 }
