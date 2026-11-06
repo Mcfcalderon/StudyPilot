@@ -88,8 +88,9 @@ observeEvent(input$btn_gen_schedule, {
 
       # --- Fusionar PDF + GCal como template de "busy" ---
       fused_for_free <- tryCatch({
-        week_sun <- Sys.Date() - as.integer(format(Sys.Date(), "%w"))
-        df_p <- pdf_schedule_to_events(sched_data, week_sun)
+        # pdf_schedule_to_events espera el LUNES (como server_calendario.R); con el
+        # domingo cada clase bloqueaba el dia anterior
+        df_p <- pdf_schedule_to_events(sched_data, week_monday(Sys.Date()))
         df_g <- estandarizar_evento(gcal_events, "gcal")
         fusionar_horarios(df_p, df_g)
       }, error = function(e) {

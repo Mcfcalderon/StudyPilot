@@ -90,3 +90,14 @@ test_that("aplicar_colores_cursos evita que un evento del PDF repita un color de
   expect_equal(out$color[1], COURSE_COLOR_PALETTE[1])
   expect_false(out$color[2] == COURSE_COLOR_PALETTE[1])
 })
+
+test_that("week_monday devuelve el lunes de la semana (lunes a domingo)", {
+  expect_equal(week_monday(as.Date("2026-05-04")), as.Date("2026-05-04"))  # lunes
+  expect_equal(week_monday(as.Date("2026-05-07")), as.Date("2026-05-04"))  # jueves
+  expect_equal(week_monday(as.Date("2026-05-10")), as.Date("2026-05-04"))  # domingo
+  # junto con pdf_schedule_to_events, la clase del Lunes cae en lunes
+  ev_l <- pdf_schedule_to_events(data.frame(dia = "Lunes", hora_inicio = "08:00", hora_fin = "10:00",
+                                            curso = "X", stringsAsFactors = FALSE),
+                                 week_monday(as.Date("2026-05-07")))
+  expect_equal(weekdays(as.Date(substr(ev_l$start, 1, 10))), weekdays(as.Date("2026-05-04")))
+})

@@ -177,7 +177,7 @@ pdf_schedule_to_events <- function(schedule_data, week_start, colors_map = NULL)
     day_offset <- norm_map[dia_name]
     if (is.na(day_offset)) return(NULL)
 
-    # week_start is the Sunday of the week
+    # week_start es el LUNES de la semana (Domingo = week_start - 1)
     event_date <- week_start + day_offset - 1
     # Color queda "" para que aplicar_colores_cursos lo asigne dinámicamente
     clr <- if (!is.null(colors_map) && s$curso %in% names(colors_map)) {
@@ -267,4 +267,10 @@ fusionar_horarios <- function(df_pdf, df_gcal) {
 
   result <- rbind(df_gcal, pdf_unique, pdf_allday)
   result
+}
+
+# Lunes de la semana de 'd' (semana lunes-domingo, como el calendario y el ciclo)
+week_monday <- function(d = Sys.Date()) {
+  d <- as.Date(d)
+  d - (as.integer(format(d, "%u")) - 1L)
 }
