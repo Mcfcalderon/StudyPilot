@@ -187,14 +187,7 @@ observeEvent(input$chat_send, {
     msgs[[length(msgs)]] <- list(role = "ai", text = as.character(response))
     rv_chat$messages <- msgs
   }, error = function(e) {
-    message("[StudyPilot] AI chat ERROR: ", e$message)
-    err_msg <- if (grepl("429", e$message)) {
-      "La IA esta temporalmente saturada. Espera 1-2 minutos."
-    } else if (grepl("503", e$message)) {
-      "El servicio de IA no esta disponible. Intenta de nuevo."
-    } else {
-      paste0("Error: ", e$message)
-    }
+    err_msg <- user_error(e, "chat")
     msgs <- rv_chat$messages
     msgs[[length(msgs)]] <- list(role = "ai", text = err_msg)
     rv_chat$messages <- msgs

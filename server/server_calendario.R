@@ -289,7 +289,7 @@ output$visual_calendar <- renderUI({
     message("[StudyPilot] visual_calendar render error: ", e$message)
     tags$div(class = "alert alert-danger m-3",
       tags$b("Error al renderizar el calendario"),
-      tags$p(class = "small mb-0", "Intenta recargar la pagina. Detalle: ", e$message)
+      tags$p(class = "small mb-0", "Intenta recargar la pagina.")
     )
   })
 })

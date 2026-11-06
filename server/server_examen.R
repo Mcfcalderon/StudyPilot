@@ -152,7 +152,7 @@ observeEvent(input$quiz_generate, {
         rv_quiz$error_msg <- "No se pudieron generar preguntas. Verifica que el curso tenga temas."
       }
     }, error = function(e) {
-      rv_quiz$error_msg <- paste0("Error: ", e$message)
+      rv_quiz$error_msg <- user_error(e, "quiz_generate")
     })
     rv_quiz$loading <- FALSE
     shinyjs::enable("quiz_generate")
@@ -278,7 +278,7 @@ observeEvent(input$ai_study_file, {
     rv_ai$text <- text
     output$ai_upload_status <- renderPrint(
       cat(paste0("\"", f$name, "\" cargado (", nchar(text), " caracteres).")))
-  }, error = function(e) output$ai_upload_status <- renderPrint(cat(paste0("Error: ", e$message))))
+  }, error = function(e) { msg <- user_error(e, "ai_upload"); output$ai_upload_status <- renderPrint(cat(msg)) })
 })
 
 observeEvent(input$ai_gen_summary, {
@@ -315,7 +315,8 @@ observeEvent(input$ai_gen_summary, {
         ))
       }
     }, error = function(e) {
-      output$ai_result_content <- renderUI(tags$div(class = "alert alert-danger", e$message))
+      msg <- user_error(e, "ai_gen_summary")
+      output$ai_result_content <- renderUI(tags$div(class = "alert alert-danger", msg))
     })
     shinyjs::enable("ai_gen_summary")
   }, once = TRUE)
@@ -375,7 +376,8 @@ observeEvent(input$ai_gen_questions2, {
         })
       ))
     }, error = function(e) {
-      output$ai_result_content <- renderUI(tags$div(class = "alert alert-danger", e$message))
+      msg <- user_error(e, "ai_gen_questions")
+      output$ai_result_content <- renderUI(tags$div(class = "alert alert-danger", msg))
     })
     shinyjs::enable("ai_gen_questions2")
   }, once = TRUE)

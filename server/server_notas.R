@@ -182,7 +182,7 @@ observeEvent(input$save_grade_course, {
     tryCatch(mg_log_event(current_uid, "grades_save", saved), error = function(e) NULL)
     if (length(invalid) > 0) showNotification(paste0("Ignoradas (fuera de 0-20): ", paste(invalid, collapse=", ")), type = "warning", duration = 8)
   }, error = function(e) {
-    showNotification(paste0("Error: ", e$message), type = "error")
+    showNotification(user_error(e, "save_grades"), type = "error")
   })
 
   shinyjs::html(paste0("grade_spinner_", cid), "")

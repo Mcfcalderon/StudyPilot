@@ -204,10 +204,7 @@ observeEvent(input$btn_gen_schedule, {
         'Mira abajo para verlos en la grilla.</div>'))
 
     }, error = function(e) {
-      err_msg <- e$message
-      if (grepl("429|503", err_msg)) {
-        err_msg <- "API de IA temporalmente no disponible. Espera 1 min e intenta de nuevo."
-      }
+      err_msg <- user_error(e, "smart_schedule")
       shinyjs::html("smart_sched_status",
         paste0('<div class="alert alert-danger py-2 small">', esc(err_msg), '</div>'))
     })

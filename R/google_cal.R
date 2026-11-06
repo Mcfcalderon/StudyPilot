@@ -18,7 +18,9 @@ gcal_get_events <- function(calendar_email) {
 
     parse_ics_events(lines)
   }, error = function(e) {
-    data.frame(error = paste0("Error de conexión: ", e$message))
+    # El detalle (URL con el correo, error de curl) va solo al log
+    message("[StudyPilot] gcal_get_events: ", conditionMessage(e))
+    data.frame(error = "No se pudo descargar el calendario. Revisa el correo y tu conexión.")
   })
 }
 

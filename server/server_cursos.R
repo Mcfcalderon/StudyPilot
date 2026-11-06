@@ -112,7 +112,7 @@ observeEvent(input$add_course_btn, {
       input$new_course_prof, "", as.integer(input$new_course_day), input$new_course_color)
     showNotification(paste0("Curso \"", short, "\" agregado"), type = "message")
     rv$refresh <- rv$refresh + 1
-  }, error = function(e) showNotification(paste0("Error: ", e$message), type = "error"))
+  }, error = function(e) showNotification(user_error(e, "add_course"), type = "error"))
 })
 
 observeEvent(input$del_course_btn, {
@@ -130,7 +130,7 @@ observeEvent(input$del_course_btn, {
     }
     showNotification(paste0(length(cids), " curso(s) eliminado(s)"), type = "warning")
     rv$refresh <- rv$refresh + 1
-  }, error = function(e) showNotification(paste0("Error: ", e$message), type = "error"))
+  }, error = function(e) showNotification(user_error(e, "del_course"), type = "error"))
 })
 
 
@@ -154,7 +154,7 @@ observeEvent(input$syllabus_upload_btn, {
       rv$refresh <- rv$refresh + 1
       output$syllabus_status <- renderPrint(cat(paste0("Silabo \"", f$name, "\" subido (", nchar(text), " car.)")))
     }
-  }, error = function(e) output$syllabus_status <- renderPrint(cat(paste0("Error: ", e$message))))
+  }, error = function(e) { msg <- user_error(e, "syllabus_upload"); output$syllabus_status <- renderPrint(cat(msg)) })
 })
 
 # ====================================================================
@@ -276,7 +276,8 @@ observeEvent(input$syllabus_extract_btn, {
         result <- ai_extract_syllabus(text)
         if (!is.null(result$error)) {
           shinyjs::html("syllabus_status_div",
-            paste0('<div class="alert alert-danger py-2 small">', esc(result$error), '</div>'))
+            paste0('<div class="alert alert-danger py-2 small">',
+                   esc(user_error(result$error, "ai_extract_syllabus")), '</div>'))
           shinyjs::enable("syllabus_extract_btn")
           return()
         }
@@ -323,7 +324,7 @@ observeEvent(input$syllabus_extract_btn, {
         shinyjs::enable("syllabus_cancel")
       }, error = function(e) {
         shinyjs::html("syllabus_status_div",
-          paste0('<div class="alert alert-danger py-2 small">Error: ', esc(e$message), '</div>'))
+          paste0('<div class="alert alert-danger py-2 small">', esc(user_error(e, "syllabus_extract")), '</div>'))
       })
       shinyjs::enable("syllabus_extract_btn")
     }, once = TRUE)
@@ -359,7 +360,7 @@ observeEvent(input$syllabus_extract_btn, {
           result <- ai_extract_syllabus(text)
           if (!is.null(result$error)) {
             fail <- fail + 1
-            errors <- c(errors, paste0(fname, ": ", result$error))
+            errors <- c(errors, paste0(fname, ": ", user_error(result$error, "ai_extract_syllabus")))
             next
           }
 
@@ -370,9 +371,9 @@ observeEvent(input$syllabus_extract_btn, {
 
         }, error = function(e) {
           fail <<- fail + 1
-          errors <<- c(errors, paste0(fname, ": ", e$message))
-          message("[StudyPilot] Batch error on ", fname, ": ", e$message)
-          showNotification(paste0("Error en ", fname, ": ", e$message),
+          msg <- user_error(e, paste0("batch ", fname))
+          errors <<- c(errors, paste0(fname, ": ", msg))
+          showNotification(paste0("Error en ", fname, ": ", msg),
                           type = "error", duration = 8)
         })
       }
@@ -429,7 +430,7 @@ observeEvent(input$syllabus_confirm, {
              '</b> creado con ', saved$n_evals, ' evaluaciones.</div>'))
   }, error = function(e) {
     shinyjs::html("syllabus_status_div",
-      paste0('<div class="alert alert-danger py-2 small">Error: ', esc(e$message), '</div>'))
+      paste0('<div class="alert alert-danger py-2 small">', esc(user_error(e, "syllabus_confirm")), '</div>'))
     shinyjs::enable("syllabus_confirm")
     shinyjs::enable("syllabus_cancel")
   })
