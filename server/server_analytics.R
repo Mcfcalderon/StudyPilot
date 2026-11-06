@@ -7,77 +7,7 @@
 #   3. Calcular ratio de preparacion.
 #   4. Si ratio < 50%, marcar Alerta de Deuda Academica.
 
-# ====================================================================
-# HELPER: Calcular metricas de preparacion por examen
-# ====================================================================
-calc_prep_metrics <- function(all_acts, ai_blocks, course_topics_list) {
-  today <- Sys.Date()
-  # Examenes pendientes con peso >= 15%
-  exams <- all_acts[all_acts$done == 0 &
-                    all_acts$type %in% c("examen", "quiz") &
-                    all_acts$weight >= 15 &
-                    as.Date(all_acts$date) >= today, ]
-  if (nrow(exams) == 0) return(data.frame())
-
-  exams <- exams[order(as.Date(exams$date)), ]
-
-  metrics <- do.call(rbind, lapply(seq_len(nrow(exams)), function(i) {
-    ex <- exams[i, ]
-    cid <- ex$course_id
-
-    # Temas vinculados al curso
-    topics <- course_topics_list[[cid]]
-    n_topics <- if (!is.null(topics)) length(topics) else 0
-
-    # Temas vinculados a esta actividad especifica
-    act_topics <- if ("temas_vinculados" %in% names(ex) && !is.null(ex$temas_vinculados[[1]])) {
-      ex$temas_vinculados[[1]]
-    } else character(0)
-    n_act_topics <- length(act_topics)
-
-    # Usar temas de la actividad si existen, sino del curso
-    n_target <- max(n_act_topics, n_topics, 1)
-
-    # Bloques de estudio IA para este curso
-    n_blocks <- 0
-    if (!is.null(ai_blocks) && is.data.frame(ai_blocks) && nrow(ai_blocks) > 0) {
-      cname_full <- if (cid %in% courses$id) courses$name[courses$id == cid] else ""
-      cshort <- if (cid %in% courses$id) courses$short[courses$id == cid] else ""
-      course_blocks <- ai_blocks[
-        grepl(cid, ai_blocks$summary, fixed = TRUE) |
-        (nchar(cname_full) > 3 & grepl(cname_full, ai_blocks$summary, fixed = TRUE)) |
-        (nchar(cshort) > 3 & grepl(cshort, ai_blocks$summary, fixed = TRUE)), ]
-
-
-      # Excluir bloques de descanso
-      course_blocks <- course_blocks[!grepl("Descanso|descanso", course_blocks$summary), ]
-      n_blocks <- nrow(course_blocks)
-    }
-
-    # Ratio: bloques completados vs temas objetivo
-    # Cada tema necesita al menos 1 bloque de estudio
-    prep_ratio <- min(n_blocks / n_target, 1.0)
-    days_left <- as.integer(as.Date(ex$date) - today)
-
-    # Nivel de alerta
-    alert <- if (prep_ratio < 0.3 && days_left <= 7) "critica"
-             else if (prep_ratio < 0.5) "alta"
-             else if (prep_ratio < 0.75) "media"
-             else "ok"
-
-    cname <- if (cid %in% courses$id) courses$short[courses$id == cid] else cid
-
-    data.frame(
-      course_id = cid, course_name = cname, exam_name = ex$name,
-      weight = ex$weight, date = ex$date, days_left = days_left,
-      n_topics = n_target, n_blocks = n_blocks,
-      prep_ratio = round(prep_ratio, 2), alert = alert,
-      stringsAsFactors = FALSE
-    )
-  }))
-
-  metrics
-}
+# calc_prep_metrics() vive en R/analytics_calc.R (la usan Analytics y el Dashboard)
 
 # ====================================================================
 # PREPARATION GAUGES — One gauge per upcoming exam

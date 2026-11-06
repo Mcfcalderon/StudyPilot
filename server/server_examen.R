@@ -5,12 +5,11 @@
 # EXAM MODE: Update exam selector from pending activities
 # ====================================================================
 observe({
-  a <- acts() |> filter(done == 0, weight >= 15, type %in% c("examen", "quiz"))
-  if (nrow(a) == 0) {
+  a <- pending_exams(acts())   # R/analytics_calc.R
+  if (is.null(a) || nrow(a) == 0) {
     updateSelectInput(session, "exam_select", choices = c("Sin examenes pendientes" = "0"))
     return()
   }
-  a <- a |> mutate(days_left = as.integer(as.Date(date) - Sys.Date())) |> arrange(date)
   choices <- setNames(seq_len(nrow(a)), paste0(
     courses$short[match(a$course_id, courses$id)], " -- ", a$name,
     " (", a$days_left, "d, ", a$weight, "%)"
@@ -18,17 +17,7 @@ observe({
   updateSelectInput(session, "exam_select", choices = choices)
 })
 
-selected_exam <- reactive({
-  val <- input$exam_select
-  if (is.null(val) || length(val) == 0 || val == "" || val == "0") return(NULL)
-  idx <- suppressWarnings(as.integer(val))
-  if (length(idx) == 0 || is.na(idx) || idx < 1) return(NULL)
-  a <- acts() |> filter(done == 0, weight >= 15, type %in% c("examen", "quiz"))
-  if (nrow(a) == 0) return(NULL)
-  a <- a |> mutate(days_left = as.integer(as.Date(date) - Sys.Date())) |> arrange(date)
-  if (idx > nrow(a)) return(NULL)
-  a[idx, ]
-})
+selected_exam <- reactive(exam_at(acts(), input$exam_select))   # R/analytics_calc.R
 
 output$exam_info <- renderUI({
   ex <- selected_exam()
@@ -118,14 +107,7 @@ output$exam_progress_bar <- renderUI({
   )
 })
 
-# Pomodoro link to exam
-observeEvent(input$exam_pomo, {
-  ex <- selected_exam()
-  if (!is.null(ex) && ex$course_id %in% courses$id) {
-    updateSelectInput(session, "pomo_course", selected = ex$course_id)
-    updateNavbarPage(session, "main_nav", selected = "Pomodoro")
-  }
-})
+# "Estudiar con Pomodoro": lo maneja server_pomodoro.R (un solo observer)
 
 
 # ====================================================================

@@ -16,5 +16,5 @@ priority_class <- function(w) dplyr::case_when(w>=20~"high", w>=10~"medium", TRU
 
 # Cargar el codigo REAL de las funciones puras (no copias)
 for (.f in c("pure_calc.R", "db_query.R", "db_pool.R", "auth_session.R", "auth_passwords.R", "safe_html.R",
-            "study_topics.R", "calendar_events.R", "free_slots.R", "validation.R"))
+            "study_topics.R", "calendar_events.R", "free_slots.R", "validation.R", "analytics_calc.R"))
   for (.p in file.path(c("R", "../../R"), .f)) if (file.exists(.p)) { source(.p); break }

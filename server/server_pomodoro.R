@@ -15,14 +15,14 @@ observeEvent(input$pomo_session_done, {
 })
 
 # ---- "Estudiar con Pomodoro" from exam panel ----
+# input$exam_select es la POSICION en la lista de examenes pendientes, no un act_id:
+# exam_at() (R/analytics_calc.R) resuelve la actividad correcta. (selected_exam() de
+# server_examen.R no se ve aqui: cada archivo de server/ tiene su propio entorno.)
 observeEvent(input$exam_pomo, {
-  ex <- input$exam_select
-  if (is.null(ex) || ex == "0") return()
-  a <- acts()
-  match_a <- a[a$act_id == ex, ]
-  if (nrow(match_a) > 0) {
-    updateSelectInput(session, "pomo_course", selected = match_a$course_id[1])
-  }
+  ex <- exam_at(acts(), input$exam_select)
+  if (is.null(ex)) return()
+  if (ex$course_id %in% courses$id)
+    updateSelectInput(session, "pomo_course", selected = ex$course_id)
   bslib::nav_select("main_nav", selected = "\U0001F4D6 Estudio")
 })
 

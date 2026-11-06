@@ -3,7 +3,7 @@
 App de estudio en R Shiny + MongoDB Atlas (mongolite) + Gemini (ellmer). Despliegue en shinyapps.io con `deploy.R`.
 
 ## Estructura
-- `app.R` — carga variables de entorno, `global.R` y define `server()`; los archivos `server/*.R` se cargan con `source(local=TRUE)` y comparten `auth_user`, `uid`, `rv`, `acts()`, etc.
+- `app.R` — carga variables de entorno, `global.R` y define `server()`; los archivos `server/*.R` se cargan con `source(local=TRUE)` y comparten `auth_user`, `uid`, `rv`, `acts()`, etc. (lo definido en `server()`). **Cada archivo de `server/` tiene su propio entorno:** lo que define uno (p. ej. `selected_exam`) no lo ve otro. Una función que usen varios módulos va en `R/`.
 - `global.R` — librerías, carga `R/` y `ui/`, constantes del ciclo y helpers. Estado por usuario en `session$userData` (`get_courses()`, `get_pass_grade()`, `get_semester_start()`…). **Nunca** guardar datos de usuario en `globalenv()` (se comparte entre sesiones).
 - `R/db_mongo.R` — única capa de acceso a datos; toda función filtra por `user_id`. Las consultas se construyen con `R/db_query.R` (jsonlite), **nunca** con `paste0` sobre texto del usuario.
 - `R/pure_calc.R` — lógica pura testeada; referencia para una futura migración.
