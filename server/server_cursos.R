@@ -296,12 +296,24 @@ observeEvent(input$syllabus_extract_btn, {
               '</td><td>', esc(evals$tipo[i]), '</td></tr>')
           }
         }
+        # Aviso si el curso ya existe: confirmar lo borra en cascada (incluidas las notas)
+        aviso <- tryCatch({
+          cd <- if (is.null(result$codigo)) "" else result$codigo
+          ex_ids <- mg_custom_courses_get(current_uid)$id
+          if (cd %in% ex_ids) {
+            g <- mg_grades_all(current_uid); a <- mg_activities_all(current_uid)
+            aviso_reimportacion(cd, ex_ids, sum(g$course_id == cd), sum(a$course_id == cd))
+          } else ""
+        }, error = function(e) "")
+        aviso_html <- if (nzchar(aviso))
+          paste0('<div class="alert alert-warning py-2 small mb-2"><b>⚠️ ', esc(aviso), '</b></div>') else ""
         temas_html <- ""
         if (!is.null(result$temas)) {
           temas_html <- paste0('<ul class="small mb-0">',
             paste0('<li>', esc(result$temas), '</li>', collapse = ""), '</ul>')
         }
         preview_html <- paste0(
+          aviso_html,
           '<div class="card shadow-sm"><div class="card-body py-3">',
           '<h6 class="fw-bold mb-1">',
             esc(if (is.null(result$nombre_curso)) "Curso" else result$nombre_curso), '</h6>',
@@ -339,7 +351,9 @@ observeEvent(input$syllabus_extract_btn, {
            'Esto puede tomar ', n_files * 20, '-', n_files * 40, ' seg.</div>'))
 
   session$onFlushed(function() {
-    ok <- 0; fail <- 0; errors <- character()
+    ok <- 0; fail <- 0; errors <- character(); skipped <- character()
+    # En lote no hay confirmacion: un curso que ya existe NO se reemplaza (borraria sus notas)
+    existing_ids <- tryCatch(mg_custom_courses_get(current_uid)$id, error = function(e) character(0))
 
     withProgress(message = "Analizando Silabos", value = 0, {
       for (fi in seq_len(n_files)) {
@@ -364,7 +378,12 @@ observeEvent(input$syllabus_extract_btn, {
             next
           }
 
+          if (nzchar(aviso_reimportacion(result$codigo, existing_ids))) {
+            skipped <- c(skipped, paste0(fname, " (", result$codigo, ")"))
+            next
+          }
           saved <- guardar_curso_extraido(current_uid, result, text)
+          existing_ids <- c(existing_ids, saved$cid)
           ok <- ok + 1
           message("[StudyPilot] Batch: saved \"", saved$cname, "\" (",
                   saved$n_evals, " evals) from ", fname)
@@ -395,6 +414,9 @@ observeEvent(input$syllabus_extract_btn, {
       ' py-2 small">',
       if (ok > 0) paste0('<b>', ok, ' curso(s)</b> creados exitosamente. ') else "",
       if (fail > 0) paste0('<b>', fail, '</b> archivo(s) fallaron. ') else "",
+      if (length(skipped) > 0) paste0('<br><small><b>Omitidos porque el curso ya existe</b> ',
+        '(para reemplazarlo sube su silabo solo, o borra el curso primero): ',
+        esc(paste(skipped, collapse = ", ")), '</small>') else "",
       error_html, '</div>'))
 
     shinyjs::enable("syllabus_extract_btn")

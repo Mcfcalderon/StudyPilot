@@ -64,6 +64,18 @@ user_error <- function(e, where = "") {
   user_error_text(m)
 }
 
+# Reimportar el silabo de un curso que YA existe lo borra en cascada (guardar_curso_extraido ->
+# mg_custom_course_delete): actividades, notas, checks y pomodoros. Texto de aviso, o "" si el
+# codigo es nuevo. (Si la IA no da codigo se crea uno nuevo, asi que no hay aviso.)
+aviso_reimportacion <- function(codigo, cursos_ids, n_notas = 0, n_acts = 0) {
+  cd <- .scalar_chr(codigo)
+  if (is.na(cd) || !nzchar(cd) || !(cd %in% cursos_ids)) return("")
+  paste0("Ya tienes el curso ", cd, ". Si confirmas, se reemplaza y se borran sus ",
+         n_acts, " actividad(es)",
+         if (n_notas > 0) paste0(", sus ", n_notas, " nota(s)") else "",
+         ", los checks de examen y los pomodoros de ese curso.")
+}
+
 # Duracion de una sesion Pomodoro en minutos: entero 1..180, o NA si no es valida
 valid_pomo_duration <- function(x) {
   v <- suppressWarnings(as.numeric(.scalar_chr(x)))

@@ -83,3 +83,14 @@ test_that("exam_is_final reconoce el final por codigo (regla original) o por nom
   expect_false(exam_is_final("", "Semifinales de debate")) # 'final' dentro de palabra no cuenta
   expect_false(exam_is_final(NULL, NULL))
 })
+
+test_that("aviso_reimportacion avisa solo si el codigo ya existe", {
+  ids <- c("CS2031", "MA1001")
+  expect_equal(aviso_reimportacion("NUEVO", ids), "")
+  expect_equal(aviso_reimportacion("", ids), "")
+  expect_equal(aviso_reimportacion(NULL, ids), "")
+  expect_equal(aviso_reimportacion(NA, ids), "")
+  a <- aviso_reimportacion("CS2031", ids, n_notas = 3, n_acts = 7)
+  expect_match(a, "CS2031"); expect_match(a, "7 actividad"); expect_match(a, "3 nota")
+  expect_false(grepl("nota", aviso_reimportacion("CS2031", ids, 0, 2)))
+})
