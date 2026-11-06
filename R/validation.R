@@ -63,3 +63,19 @@ user_error <- function(e, where = "") {
   message("[StudyPilot] Error", if (nzchar(where)) paste0(" (", where, ")") else "", ": ", m)
   user_error_text(m)
 }
+
+# Duracion de una sesion Pomodoro en minutos: entero 1..180, o NA si no es valida
+valid_pomo_duration <- function(x) {
+  v <- suppressWarnings(as.numeric(.scalar_chr(x)))
+  if (is.na(v) || v < 1 || v > 180) return(NA_integer_)
+  as.integer(round(v))
+}
+
+# Examen final? Antes solo se miraba activities.code, que siempre es "" (ver
+# docs/MONGO_SCHEMA.md), asi que ningun examen contaba como final. Ahora tambien el nombre.
+exam_is_final <- function(code, name = "") {
+  cd <- .scalar_chr(code); nm <- .scalar_chr(name)
+  by_code <- !is.na(cd) && grepl("final|EF|EXM2", cd, ignore.case = TRUE)   # regla original
+  by_name <- !is.na(nm) && grepl("\\b(final|EF|EXM2)\\b", nm, ignore.case = TRUE, perl = TRUE)
+  by_code || by_name
+}

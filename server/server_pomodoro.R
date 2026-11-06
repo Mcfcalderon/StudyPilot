@@ -6,7 +6,8 @@
 # ---- Record completed Pomodoro session ----
 observeEvent(input$pomo_session_done, {
   cid <- input$pomo_course
-  dur <- as.integer(input$pomo_duration)
+  dur <- valid_pomo_duration(input$pomo_duration)   # 1..180 o NA (R/validation.R)
+  if (is.na(dur)) { message("[StudyPilot] Pomodoro: duracion invalida, no se guarda"); return() }
   tryCatch({
     mg_pomo_add(uid(), cid, dur)
     message("[StudyPilot] Pomodoro: +", dur, "min for ", cid)

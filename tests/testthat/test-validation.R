@@ -63,3 +63,23 @@ test_that("user_error registra el detalle y devuelve el texto seguro", {
   expect_message(out2 <- user_error("HTTP 429"), "429")
   expect_match(out2, "saturada")
 })
+
+test_that("valid_pomo_duration acepta 1..180 minutos y rechaza lo demas", {
+  expect_equal(valid_pomo_duration(25), 25L)
+  expect_equal(valid_pomo_duration("50"), 50L)
+  expect_equal(valid_pomo_duration(24.6), 25L)
+  expect_equal(valid_pomo_duration(180), 180L)
+  for (bad in list(0, -5, 181, NA, NULL, "abc", c(25, 50), list(25))) expect_true(is.na(valid_pomo_duration(bad)))
+})
+
+test_that("exam_is_final reconoce el final por codigo (regla original) o por nombre", {
+  expect_true(exam_is_final("EF", ""))                 # por codigo, como antes
+  expect_true(exam_is_final("EXM2", NA))
+  expect_true(exam_is_final("", "Examen Final"))       # code vacio: antes daba FALSE
+  expect_true(exam_is_final("", "EF - Teoria"))
+  expect_true(exam_is_final(NA, "final"))
+  expect_false(exam_is_final("", "Examen Parcial"))
+  expect_false(exam_is_final("", "Refuerzo de efectos"))   # 'ef' dentro de palabra no cuenta
+  expect_false(exam_is_final("", "Semifinales de debate")) # 'final' dentro de palabra no cuenta
+  expect_false(exam_is_final(NULL, NULL))
+})

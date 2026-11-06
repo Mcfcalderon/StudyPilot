@@ -59,7 +59,7 @@ output$exam_topics_checklist <- renderUI({
   if (is.null(topics) || length(topics) == 0)
     return(tags$p(class = "text-muted small", "Sin temas definidos. Sube el silabo."))
 
-  is_final <- grepl("final|EF|EXM2", ex$code, ignore.case = TRUE)
+  is_final <- exam_is_final(ex$code, ex$name)   # R/validation.R
   show_topics <- if (is_final) topics else topics[1:ceiling(length(topics) / 2)]
   label <- if (is_final) "Todo el curso (Final)" else "Primera mitad (Parcial)"
 
@@ -86,13 +86,14 @@ observe({
   if (is.null(ex)) return()
   topics <- course_topics[[ex$course_id]]
   if (is.null(topics)) return()
-  show_topics <- if (grepl("final|EF|EXM2", ex$code, ignore.case = TRUE)) topics
+  show_topics <- if (exam_is_final(ex$code, ex$name)) topics
                  else topics[1:ceiling(length(topics) / 2)]
   for (i in seq_along(show_topics)) {
     key <- paste0(ex$code, "_", i)
     val <- input[[paste0("etopic_", key)]]
     if (!is.null(val)) {
-      mg_exam_check_set(uid(), ex$course_id, key, as.integer(val))
+      tryCatch(mg_exam_check_set(uid(), ex$course_id, key, as.integer(isTRUE(val))),
+               error = function(e) message("[StudyPilot] exam_check_set: ", conditionMessage(e)))
     }
   }
 })
@@ -102,7 +103,7 @@ output$exam_progress_bar <- renderUI({
   if (is.null(ex)) return(NULL)
   topics <- course_topics[[ex$course_id]]
   if (is.null(topics) || length(topics) == 0) return(NULL)
-  show_topics <- if (grepl("final|EF", ex$code, ignore.case = TRUE)) topics
+  show_topics <- if (exam_is_final(ex$code, ex$name)) topics
                  else topics[1:ceiling(length(topics) / 2)]
   checks <- mg_exam_checks_get(uid(), ex$course_id)
   checked <- sum(sapply(seq_along(show_topics), function(i) {
