@@ -1,5 +1,14 @@
 # ============ SMART SCHEDULER: FREE TIME (lubridate intervals) ============
 # Uses lubridate::interval() for precise anti-overlap calculation
+
+# "YYYY-MM-DDTHH:MM[:SS]" o "YYYY-MM-DD HH:MM[:SS]" -> POSIXct (NA si no tiene hora).
+# Con formato explicito: as.POSIXct() sin formato NO entiende la "T" y devolvia la
+# medianoche, asi que los eventos de Google, IA y el bloque "PASADO" no ocupaban tiempo.
+parse_local_datetime <- function(x, tz = "America/Lima") {
+  if (is.null(x) || length(x) != 1 || is.na(x)) return(as.POSIXct(NA))
+  s <- sub("T", " ", substr(as.character(x), 1, 16), fixed = TRUE)
+  as.POSIXct(paste0(s, ":00"), tz = tz, format = "%Y-%m-%d %H:%M:%S")
+}
 obtener_espacio_libre <- function(gcal_events = NULL, schedule_data = NULL,
                                   ai_blocks = NULL,
                                   start_date = Sys.Date(), end_date = Sys.Date() + 6,
@@ -57,9 +66,9 @@ obtener_espacio_libre <- function(gcal_events = NULL, schedule_data = NULL,
                                   nchar(all_busy_events$start) > 10 &
                                   as.Date(substr(all_busy_events$start, 1, 10)) == dd, ]
       for (k in seq_len(nrow(day_evts))) {
-        ev_s <- tryCatch(as.POSIXct(paste0(substr(day_evts$start[k], 1, 16), ":00"), tz = tz_local), error = function(e) NULL)
-        ev_e <- tryCatch(as.POSIXct(paste0(substr(day_evts$end[k], 1, 16), ":00"), tz = tz_local), error = function(e) NULL)
-        if (!is.null(ev_s) && !is.null(ev_e) && ev_e > ev_s) {
+        ev_s <- parse_local_datetime(day_evts$start[k], tz_local)
+        ev_e <- parse_local_datetime(day_evts$end[k], tz_local)
+        if (!is.na(ev_s) && !is.na(ev_e) && ev_e > ev_s) {
           busy_intervals <- c(busy_intervals, list(interval(ev_s, ev_e, tzone = tz_local)))
         }
       }
