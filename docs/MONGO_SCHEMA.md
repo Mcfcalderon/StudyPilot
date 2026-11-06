@@ -63,6 +63,7 @@ Un documento por usuario (upsert por `user_id`). Todos los campos son opcionales
 | `pass_grade` | double | umbral aprobatorio (default 13 si falta) |
 | `semester_start` | string `YYYY-MM-DD` | lunes de la semana 1. Si falta, la app usa **el lunes de la semana actual** (`app.R`), no `SEMESTER_START` |
 | `tour_seen` | string `"1"` | visita guiada vista (texto, no bool) |
+| `canvas_ics_url` | string | desde 2026-11-06: enlace privado del feed de calendario de Canvas (`https://…instructure.com/feeds/calendars/user_….ics`), o `""` si se quitó. **Sensible:** quien lo tenga ve el calendario del alumno. En v2 → `calendar_feeds` (`kind 'ics'`) |
 
 ```json
 { "user_id": "ana.p", "pass_grade": 13, "semester_start": "2026-03-23", "tour_seen": "1" }

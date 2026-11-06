@@ -82,9 +82,19 @@ archivos. Las columnas `canvas_course_id` y `canvas_assignment_id` ya están en 
 ## 4. ¿Y en la app R actual?
 
 No conviene agregar la conexión por token ahí: es una función grande, guarda un secreto sensible
-y la app se va a reemplazar. El único atajo pequeño sería la **opción A**: un campo "URL del
-calendario de Canvas" que reutilice `parse_ics_events()` (`R/google_cal.R`) para que las
-entregas aparezcan en el calendario. Queda pendiente de tu decisión.
+y la app se va a reemplazar. **Hecho (2026-11-06): opción A.** En Calendario, fila "📌 Canvas":
+el alumno pega el enlace de "Fuente del calendario" y sus entregas aparecen en el calendario
+(`R/canvas_feed.R`, `server/server_canvas.R`, con tests).
+- El enlace se valida (solo `https://*.instructure.com/feeds/calendars/user_*.ics`, o hosts
+  extra en `CANVAS_FEED_HOSTS`), porque lo descarga el servidor. Se guarda en
+  `settings.canvas_ics_url` y se resincroniza al iniciar sesión. Nunca se escribe en los logs.
+- Las entregas van **aparte** de Google (`rv_gcal$canvas_events`). Se ven como bloque de 30 min
+  que termina en la hora límite, pero **no** cuentan como tiempo ocupado para el Smart Scheduler
+  ni para `fusionar_horarios`.
+- Se corrigió en el camino el *folding* de líneas ICS (títulos largos truncados) y los escapes
+  `\,` `\;` (solo en el camino de Canvas; Google sigue igual).
+- No crea actividades: solo las muestra. Importarlas como actividades (con su peso) queda para v2
+  con la API, porque el feed no trae pesos.
 
 ## Fuentes
 - Restricción de tokens para alumnos: [Canvas Deploy Notes 2025-09-10](https://community.canvaslms.com/t5/Canvas-Releases/Canvas-Deploy-Notes-2025-09-10/ta-p/654577),

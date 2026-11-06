@@ -37,6 +37,13 @@ horario_maestro <- reactive({
     }
     message("[HM] Step4 +AI: ", nrow(df_fused), " events total")
 
+    # Entregas de Canvas (server_canvas.R): se muestran, pero no entran en fusionar_horarios
+    df_cv <- estandarizar_evento(rv_gcal$canvas_events, "canvas")
+    if (nrow(df_cv) > 0) {
+      if (nrow(df_fused) > 0) for (col in CALENDAR_SCHEMA) if (col != "is_ai") df_fused[[col]] <- as.character(df_fused[[col]])
+      df_fused <- if (nrow(df_fused) > 0) rbind(df_fused, df_cv) else df_cv
+    }
+
     overrides <- rv_gcal$overrides
     if (!is.null(overrides) && is.data.frame(overrides) && nrow(overrides) > 0 && nrow(df_fused) > 0) {
       for (ov in seq_len(nrow(overrides))) {

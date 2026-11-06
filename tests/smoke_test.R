@@ -21,7 +21,7 @@
     suppressWarnings(suppressMessages(sys.source("global.R", envir=e)))
     req_fns <- c("current_week","week_to_date","date_to_week","PASS_GRADE",
                  "grade_class","grade_hex","priority_class","compute_course_avg","generar_repaso_espaciado","get_semester_start",
-                 "uf","mq_set","safe_md","esc","mg_session_user","parse_admin_users","login_blocked","ensure_indexes","topics_from_notes","build_topics_note","validar_actividad","user_error","cal_event_onclick","calc_prep_metrics","exam_at")
+                 "uf","mq_set","safe_md","esc","mg_session_user","parse_admin_users","login_blocked","ensure_indexes","topics_from_notes","build_topics_note","validar_actividad","user_error","cal_event_onclick","calc_prep_metrics","exam_at","canvas_get_events","valid_canvas_feed_url")
     faltan <- req_fns[!vapply(req_fns, function(x) exists(x, envir=e, inherits=TRUE), logical(1))]
     if (length(faltan)) { cat("  X faltan:", paste(faltan, collapse=", "), "\n"); FALSE } else { cat("  OK: presentes\n"); TRUE }
   }, error=function(e){ cat("  X global.R fallo:", conditionMessage(e), "\n"); FALSE })

@@ -62,6 +62,21 @@ ui_calendario <- function() {
                          class = "btn-sm btn-outline-success")
         ),
         div(id = "gcal_status_div"),
+        # Fila 3: entregas de Canvas por el feed de calendario (sin token; R/canvas_feed.R)
+        div(class = "d-flex flex-wrap gap-2 align-items-center mt-2",
+          tags$small(class = "fw-bold text-muted", "\U0001F4CC Canvas:"),
+          div(style = "flex:1;min-width:220px;max-width:480px",
+            passwordInput("canvas_ics_url", NULL, value = "", width = "100%",
+                          placeholder = "Enlace de Calendario → Fuente del calendario (.ics)")
+          ),
+          actionButton("canvas_sync", "\U0001F504 Sync", class = "btn-sm btn-outline-primary",
+                       title = "Traer tus entregas de Canvas"),
+          actionButton("canvas_clear", "Quitar", class = "btn-sm btn-outline-secondary",
+                       title = "Olvidar el enlace de Canvas"),
+          tags$small(class = "text-muted",
+            "En Canvas: Calendario → \"Fuente del calendario\" → copia el enlace. No requiere token.")
+        ),
+        div(id = "canvas_status_div"),
         div(id = "smart_sched_status"),
         tags$p(class = "text-muted small mb-0 mt-1",
           "Flujo: Sube PDF \u2192 Sincroniza Google \u2192 \u2728 La IA fusiona todo y llena huecos con bloques de estudio.")

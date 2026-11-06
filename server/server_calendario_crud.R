@@ -68,6 +68,7 @@ observeEvent(input$cal_event_click, {
   is_gcal <- isTRUE(ev$is_gcal)
   src_label <- if (is_ai) "Bloque IA"
                else if (is_gcal) "Google Calendar"
+               else if (identical(ev$source, "canvas")) "Entrega de Canvas"
                else "Horario PDF"
   cur_color <- if (!is.null(ev$color) && nchar(ev$color) > 0) ev$color else "#3b82f6"
 
