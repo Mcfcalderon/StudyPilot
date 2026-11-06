@@ -34,3 +34,6 @@ app_old.R
 
 # Acceso directo local de Windows
 *.url
+
+# Exportaciones de MongoDB (datos de alumnos y hashes; tools/export_mongo.R)
+export/
