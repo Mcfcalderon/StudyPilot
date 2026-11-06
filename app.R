@@ -1,5 +1,12 @@
 # ============ StudyPilot app.R ============
 
+# ==== ZONA HORARIA ====
+# shinyapps.io corre en UTC: sin esto Sys.Date() pasaba al dia siguiente a las 19:00 de Lima
+# (dias restantes, atrasadas, Pomodoro de "hoy", prioridades). Los sellos de tiempo guardados
+# con as.character(Sys.time()) quedan en hora de Lima desde el despliegue de este cambio
+# (antes, UTC): ver docs/MONGO_SCHEMA.md.
+Sys.setenv(TZ = "America/Lima")
+
 # ==== LOAD ENV VARS (before anything else) ====
 for (.ef in c("app_env", ".Renviron")) {
   if (file.exists(.ef)) {

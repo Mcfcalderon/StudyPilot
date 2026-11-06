@@ -24,10 +24,11 @@
   | ISO sin zona | `2026-05-08T19:00:00` / `2026-05-08T19:00` | `ai_blocks.start/end`, `cal_overrides.orig_start`, `usage_events.ts`, `cal_hidden.key` |
   | Fecha BSON (`$date`) | `ISODate("2026-05-08T21:14:03Z")` | solo `sessions.created_at/expires_at` |
 
-  **Rareza — zona horaria:** la app **no fija `TZ`**. Los sellos de `Sys.time()` quedan en la
-  zona del servidor: en shinyapps.io eso es **UTC**. En local (Windows), es `America/Lima`. El texto
-  no lleva desfase, así que el mismo formato puede significar UTC o Lima según dónde corría la
-  app. Para producción, asumir **UTC**. Desde R 4.3, `as.character(Sys.time())` agrega
+  **Rareza — zona horaria:** hasta el commit `fix(tz)` (2026-11-06) la app **no fijaba `TZ`** y los
+  sellos de `Sys.time()` quedaban en la zona del servidor: en shinyapps.io, **UTC**; en local
+  (Windows), `America/Lima`. Desde que **se despliega** ese commit, `app.R` fija
+  `TZ=America/Lima`. El texto no lleva desfase, así que para migrar: sellos **anteriores a la
+  fecha de ese despliegue = UTC**, posteriores = Lima (anotar la fecha exacta al desplegar). Desde R 4.3, `as.character(Sys.time())` agrega
   microsegundos, por eso conviven valores con y sin fracción.
 
 - **Números:** mongolite guarda `integer` como int32 y `numeric` como double. El mismo campo
@@ -116,7 +117,7 @@ Evaluaciones y tareas (en v2: `evaluations`).
 | `week` | int | semana 1–16. **Rareza:** las actividades creadas a mano guardan `0` hasta que se editan (al editar se recalcula con `date_to_week`) |
 | `weight` | double | % de la nota (0–100). Las formativas guardan 0 |
 | `done` | int 0/1 | |
-| `done_date` | string \| null | `as.character(Sys.time())` (UTC en producción) o null |
+| `done_date` | string \| null | `as.character(Sys.time())` (zona: ver "Rareza — zona horaria") o null |
 | `notes` | string | desde el sílabo: `"Semana N"` |
 | `is_calificada` | bool | **opcional:** falta en documentos viejos |
 | `temas_vinculados` | array de string | **opcional.** Son **títulos** de tema (texto), no posiciones: si se reextraen los temas, el enlace se rompe sin aviso |
@@ -299,11 +300,11 @@ Checklist de temas en "Modo examen".
 | `user_id` | string | |
 | `course_id` | string | **opcional**: falta si el usuario no tenía cursos (el select queda `NULL`) |
 | `duration_min` | int | 1–120 según la UI. Sin validar en el servidor hasta el 2026-11-06 (puede haber `NA`); desde entonces, 1–180 |
-| `completed_at` | string | `as.character(Sys.time())` (UTC en producción) |
+| `completed_at` | string | `as.character(Sys.time())` (zona: ver "Rareza — zona horaria") |
 
 - Escribe: `mg_pomo_add` ← `server_pomodoro.R`. Lee: `mg_pomo_get_today` ← `server_pomodoro.R`.
-- "Hoy" se calcula con `grepl(Sys.Date(), completed_at)` en la zona del servidor (UTC): entre
-  las 19:00 y las 24:00 de Lima, las sesiones cuentan para el día siguiente.
+- "Hoy" se calcula con `grepl(Sys.Date(), completed_at)`. Mientras la app corria en UTC, entre
+  las 19:00 y las 24:00 de Lima las sesiones contaban para el día siguiente (corregido con TZ).
 
 ## `cal_overrides`
 Ediciones locales de eventos del horario o de Google Calendar. Se reemplaza la lista entera.
@@ -347,7 +348,7 @@ Auto-login. **No se migra.**
 | `user_id` | string | |
 | `event` | string | `login`, `chat`, `grades_save`, `smart_schedule` |
 | `detail` | string | `""` o, en `grades_save`, el número de notas guardadas como texto |
-| `ts` | string | `%Y-%m-%dT%H:%M:%S` en la zona del servidor (UTC) |
+| `ts` | string | `%Y-%m-%dT%H:%M:%S` en la zona del servidor (ver "Rareza — zona horaria") |
 
 - Escribe: `mg_log_event` ← `server_auth.R`, `server_chat.R`, `server_notas.R`,
   `server_smart_scheduler.R`. Lee: `mg_usage_all` ← `server_analytics.R`.
