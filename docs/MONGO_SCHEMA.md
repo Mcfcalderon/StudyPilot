@@ -134,8 +134,9 @@ Evaluaciones y tareas (en v2: `evaluations`).
   - `is_calificada` ausente: Notas (`calc_avg_fast`, `server_notas.R`) lo trata como
     **calificada**, pero `calcular_prioridades_estudio` lo trata como **formativa** cuando la
     columna existe para otros documentos del mismo usuario (`isTRUE(NA)` = `FALSE`).
-  - Una fecha vaciada en el formulario podía guardarse como `[]`/null. Desde este commit el
-    formulario la valida, pero puede haber documentos viejos así.
+  - Una fecha vaciada en el formulario podía guardarse como `[]`/null, y el peso como null o
+    fuera de 0–100. Desde el 2026-11-06 `validar_actividad()` lo impide, pero puede haber
+    documentos viejos así.
 
 ### Cómo se forman los códigos `E1…En` de las notas (crítico para migrar `grades`)
 Lo hace `calc_avg_fast` (`app.R`), y **de forma idéntica** `server_notas.R` (panel y guardado):
@@ -202,8 +203,8 @@ Temas del curso Desarrollo Basado en Plataformas:
 2. Autenticación JWT
 3. Despliegue en la nube
 ```
-Se lee en cada login (`server_auth.R`; desde este commit con `parse_topics_note()` de
-`R/study_topics.R`, mismo comportamiento): se parte por `\n`, se quedan las líneas que **empiezan**
+Se lee en cada login (`server_auth.R`, con `topics_from_notes()` / `parse_topics_note()` de
+`R/study_topics.R`; los casos borde están en `tests/testthat/test-study-topics.R`): se parte por `\n`, se quedan las líneas que **empiezan**
 con `^\d+\.` y se quita `^\d+\.\s*`. La línea de cabecera se descarta.
 - Si un curso tiene **varias** notas de temas, se procesan en orden `created_at` descendente y
   cada una sobrescribe a la anterior: **gana la más antigua**.
@@ -286,16 +287,18 @@ Checklist de temas en "Modo examen".
   `"_1"`, `"_2"`, … **Los checks se comparten entre todos los exámenes del mismo curso**: no
   apuntan a una evaluación concreta. Para migrar, copiar cada check a **todas** las evaluaciones
   examen/quiz del curso, o solo al próximo examen pendiente (decisión de producto).
-- Por el mismo motivo, la detección de final (`grepl("final|EF|EXM2", ex$code)`) nunca se
-  activa: todos los exámenes muestran la **primera mitad** de los temas. Las claves con `i`
-  mayor que `ceiling(n/2)` solo existen si había códigos en datos viejos.
+- Por el mismo motivo, hasta el 2026-11-06 la detección de final (`grepl("final|EF|EXM2", ex$code)`)
+  nunca se activaba: todos los exámenes mostraban la **primera mitad** de los temas. Desde
+  entonces `exam_is_final()` (`R/validation.R`) también mira el nombre (`\bfinal\b`, `\bEF\b`,
+  `\bEXM2\b`). Las claves con `i` mayor que `ceiling(n/2)` solo aparecen después de esa fecha
+  (o en datos viejos con código).
 
 ## `pomo_sessions`
 | Campo | Tipo | Notas |
 |---|---|---|
 | `user_id` | string | |
 | `course_id` | string | **opcional**: falta si el usuario no tenía cursos (el select queda `NULL`) |
-| `duration_min` | int | 1–120 según la UI; sin validar en el servidor (puede ser `NA`) |
+| `duration_min` | int | 1–120 según la UI. Sin validar en el servidor hasta el 2026-11-06 (puede haber `NA`); desde entonces, 1–180 |
 | `completed_at` | string | `as.character(Sys.time())` (UTC en producción) |
 
 - Escribe: `mg_pomo_add` ← `server_pomodoro.R`. Lee: `mg_pomo_get_today` ← `server_pomodoro.R`.
@@ -311,7 +314,7 @@ Ediciones locales de eventos del horario o de Google Calendar. Se reemplaza la l
 | `orig_title` | string | título original: **es la clave** |
 | `orig_start` | string | `YYYY-MM-DDTHH:MM[:SS]`, o `"any_THH:MM"` cuando viene de arrastrar |
 | `new_title` | string | |
-| `new_start_time`, `new_end_time` | string `HH:MM` | texto libre del modal (validado desde este commit) |
+| `new_start_time`, `new_end_time` | string `HH:MM` | texto libre del modal hasta el 2026-11-06 (puede haber valores inválidos); desde entonces se valida `HH:MM` y fin > inicio |
 | `new_color` | string | hex o `""` |
 
 - Escribe: `mg_cal_overrides_set` ← `server_calendario_crud.R`. Lee: `mg_cal_overrides_get` ← `server_auth.R`.
