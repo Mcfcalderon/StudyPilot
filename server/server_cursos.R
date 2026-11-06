@@ -222,8 +222,7 @@ guardar_curso_extraido <- function(user_id, d, syllabus_text = NULL) {
   if (length(temas) == 0 && !is.null(syllabus_text) && nchar(syllabus_text) > 0)
     temas <- tryCatch(extract_topics_fallback(syllabus_text), error = function(e) character(0))
   if (length(temas) > 0) {
-    topics_text <- paste0("Temas del curso ", cname, ":\n",
-      paste(seq_along(temas), temas, sep = ". ", collapse = "\n"))
+    topics_text <- build_topics_note(cname, temas)   # R/study_topics.R
     mg_note_add(user_id, cid, topics_text, "Temas extraidos del silabo")
     ct <- get_course_topics()
     if (is.null(ct)) ct <- list()

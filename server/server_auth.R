@@ -235,16 +235,7 @@ observeEvent(auth_user(), {
   tryCatch({
     all_notes <- mg_notes_all(uid())
     if (nrow(all_notes) > 0) {
-      topic_notes <- all_notes[grepl("Temas", all_notes$source, ignore.case = TRUE), ]
-      topics_list <- list()
-      for (j in seq_len(nrow(topic_notes))) {
-        cid_t <- topic_notes$course_id[j]
-        raw <- topic_notes$text_content[j]
-        topic_lines <- strsplit(raw, "\n")[[1]]
-        topic_lines <- topic_lines[grepl("^\\d+\\.", topic_lines)]
-        topic_lines <- sub("^\\d+\\.\\s*", "", topic_lines)
-        if (length(topic_lines) > 0) topics_list[[cid_t]] <- topic_lines
-      }
+      topics_list <- topics_from_notes(all_notes)   # R/study_topics.R
       set_course_topics(topics_list)
       message("[StudyPilot] Loaded topics for ", length(topics_list), " courses")
     }
