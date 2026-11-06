@@ -4,6 +4,12 @@
 # "YYYY-MM-DDTHH:MM[:SS]" o "YYYY-MM-DD HH:MM[:SS]" -> POSIXct (NA si no tiene hora).
 # Con formato explicito: as.POSIXct() sin formato NO entiende la "T" y devolvia la
 # medianoche, asi que los eventos de Google, IA y el bloque "PASADO" no ocupaban tiempo.
+# "Miércoles", "miercoles ", "MIÉRCOLES" -> "miercoles" (para comparar nombres de dia)
+norm_dia <- function(x) {
+  x <- tolower(trimws(as.character(x)))
+  chartr("áéíóúÁÉÍÓÚ", "aeiouaeiou", x)
+}
+
 parse_local_datetime <- function(x, tz = "America/Lima") {
   if (is.null(x) || length(x) != 1 || is.na(x)) return(as.POSIXct(NA))
   s <- sub("T", " ", substr(as.character(x), 1, 16), fixed = TRUE)
@@ -76,7 +82,8 @@ obtener_espacio_libre <- function(gcal_events = NULL, schedule_data = NULL,
 
     # MongoDB schedule (recurring weekly classes)
     if (!is.null(schedule_data) && is.data.frame(schedule_data) && nrow(schedule_data) > 0) {
-      day_sched <- schedule_data[schedule_data$dia == day_name, ]
+      # La IA puede escribir "Miercoles"/"Sabado" sin tilde o con espacios: comparar normalizado
+      day_sched <- schedule_data[norm_dia(schedule_data$dia) == norm_dia(day_name), , drop = FALSE]
       for (k in seq_len(nrow(day_sched))) {
         sc_s <- tryCatch(as.POSIXct(paste(dd, paste0(day_sched$hora_inicio[k], ":00")), tz = tz_local), error = function(e) NULL)
         sc_e <- tryCatch(as.POSIXct(paste(dd, paste0(day_sched$hora_fin[k], ":00")), tz = tz_local), error = function(e) NULL)

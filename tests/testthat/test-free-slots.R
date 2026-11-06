@@ -100,3 +100,14 @@ test_that("el bloque PASADO del scheduler (00:00 -> ahora) recorta el dia", {
   expect_equal(s$start_time, "15:12")
   expect_true(all(s$start_iso >= "2026-05-04T15:12"))
 })
+
+test_that("el horario bloquea su dia aunque la IA escriba el nombre sin tilde", {
+  mie <- LUNES + 2; sab <- LUNES + 5
+  sched <- data.frame(dia = c("Miercoles", " S\u00c1BADO "), hora_inicio = "10:00", hora_fin = "12:00",
+                      stringsAsFactors = FALSE)
+  s <- obtener_espacio_libre(start_date = mie, end_date = mie, schedule_data = sched)
+  expect_equal(s$start_time, c("07:00", "12:00"))
+  s <- obtener_espacio_libre(start_date = sab, end_date = sab, schedule_data = sched)
+  expect_equal(s$start_time, c("07:00", "12:00"))
+  expect_equal(norm_dia(c("Mi\u00e9rcoles", "miercoles ", "MI\u00c9RCOLES")), rep("miercoles", 3))
+})
