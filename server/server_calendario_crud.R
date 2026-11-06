@@ -178,40 +178,17 @@ observeEvent(input$cal_edit_delete, {
 
 # ---- CRUD: Drag-to-move handler (from JS) ----
 observeEvent(input$cal_drag_move, {
-  d <- input$cal_drag_move
-  if (is.null(d) || is.null(d$title)) return()
-  if (!validar_rango_horas(d$new_start, d$new_end)$ok) return()   # viene del navegador
-
-  ai_blocks <- rv_gcal$ai_blocks
-  if (!is.null(ai_blocks) && nrow(ai_blocks) > 0) {
-    match_idx <- which(ai_blocks$summary == d$title)
-    if (length(match_idx) > 0) {
-      idx <- match_idx[1]
-      date_part <- substr(ai_blocks$start[idx], 1, 10)
-      ai_blocks$start[idx] <- paste0(date_part, "T", d$new_start, ":00")
-      ai_blocks$end[idx]   <- paste0(date_part, "T", d$new_end, ":00")
-      rv_gcal$ai_blocks <- ai_blocks
-      save_ai_blocks_mongo()
-      rv$refresh <- rv$refresh + 1
-      return()
-    }
-  }
-
-  override <- data.frame(
-    orig_title = d$title, orig_start = paste0("any_T", d$old_time),
-    new_title = d$title, new_start_time = d$new_start,
-    new_end_time = d$new_end, new_color = "",
-    stringsAsFactors = FALSE
-  )
-  existing <- rv_gcal$overrides
-  if (is.null(existing) || !is.data.frame(existing) || nrow(existing) == 0) {
-    existing <- override
+  # Logica pura y testeada en R/calendar_events.R (aplicar_arrastre); d viene del navegador
+  r <- aplicar_arrastre(rv_gcal$ai_blocks, rv_gcal$overrides, input$cal_drag_move)
+  if (is.null(r)) { rv$refresh <- rv$refresh + 1; return() }   # invalido: redibujar como estaba
+  if (r$kind == "ai") {
+    rv_gcal$ai_blocks <- r$ai_blocks
+    save_ai_blocks_mongo()
   } else {
-    existing <- rbind(existing, override)
+    rv_gcal$overrides <- r$overrides
+    tryCatch(mg_cal_overrides_set(uid(), r$overrides),
+             error = function(e) message("[StudyPilot] Drag override error: ", conditionMessage(e)))
   }
-  rv_gcal$overrides <- existing
-  tryCatch(mg_cal_overrides_set(uid(), existing),
-           error = function(e) message("[StudyPilot] Drag override error: ", e$message))
   rv$refresh <- rv$refresh + 1
   showNotification("Evento movido", type = "message", duration = 2)
 })

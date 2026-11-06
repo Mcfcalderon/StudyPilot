@@ -294,3 +294,57 @@ cal_event_onclick <- function(title, start, end, color, is_ai, is_gcal, source, 
   paste0("Shiny.setInputValue('cal_event_click',",
          jsonlite::toJSON(payload, auto_unbox = TRUE), ",{priority:'event'})")
 }
+
+# ============ ARRASTRAR UN EVENTO (input$cal_drag_move) ============
+# d = list(title, old_start = "YYYY-MM-DDTHH:MM" (data-start del div), new_start, new_end).
+# Bloque IA -> se mueve ESE bloque (titulo + inicio original). Horario/Google -> override con la
+# misma clave que el modal de edicion (titulo + inicio original), conservando titulo/color editados.
+# Antes: los bloques se buscaban solo por titulo (movia el primer "Descanso") y los overrides se
+# guardaban con orig_start = "any_T<hora>", que nunca coincidia con ningun evento.
+# Devuelve list(kind = "ai" | "override", ai_blocks, overrides) o NULL si no hay nada que guardar.
+aplicar_arrastre <- function(ai_blocks, overrides, d) {
+  if (is.null(d) || !is.list(d)) return(NULL)
+  s1 <- function(v) if (is.null(v) || is.list(v) || length(v) != 1 || is.na(v)) "" else as.character(v)
+  title <- s1(d$title); old <- substr(s1(d$old_start), 1, 16)
+  ns <- s1(d$new_start); ne <- s1(d$new_end)
+  if (!nzchar(title) || !validar_rango_horas(ns, ne)$ok) return(NULL)
+
+  if (!is.null(ai_blocks) && is.data.frame(ai_blocks) && nrow(ai_blocks) > 0) {
+    idx <- which(ai_blocks$summary == title & substr(ai_blocks$start, 1, 16) == old)
+    # navegador con el JS anterior en cache (sin old_start): como antes, por titulo
+    if (!length(idx) && !nzchar(old)) idx <- which(ai_blocks$summary == title)
+    if (length(idx)) {
+      i <- idx[1]
+      date_part <- substr(ai_blocks$start[i], 1, 10)
+      ai_blocks$start[i] <- paste0(date_part, "T", ns, ":00")
+      ai_blocks$end[i]   <- paste0(date_part, "T", ne, ":00")
+      return(list(kind = "ai", ai_blocks = ai_blocks, overrides = overrides))
+    }
+  }
+
+  if (!grepl("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}$", old)) return(NULL)
+  key_title <- title; key_start <- old; new_title <- title; new_color <- ""
+  if (!is.null(overrides) && is.data.frame(overrides) && nrow(overrides) > 0) {
+    os <- substr(as.character(overrides$orig_start), 1, 16)
+    # (a) el evento que se ve ya es el resultado de un override: lo que llega es lo NUEVO,
+    #     la clave debe seguir siendo el evento ORIGINAL para que se aplique al recargar
+    ya <- which(overrides$new_title == title & substr(os, 1, 10) == substr(old, 1, 10) &
+                overrides$new_start_time == substr(old, 12, 16))
+    # (b) override previo con la misma clave original
+    misma <- which(overrides$orig_title == title & os == old)
+    dup <- union(ya, misma)
+    if (length(dup)) {
+      prev <- overrides[dup[1], ]
+      key_title <- prev$orig_title; key_start <- substr(as.character(prev$orig_start), 1, 16)
+      new_title <- prev$new_title
+      new_color <- if (is.na(prev$new_color)) "" else prev$new_color
+      overrides <- overrides[-dup, , drop = FALSE]
+    }
+  }
+  ov <- data.frame(orig_title = key_title, orig_start = key_start, new_title = new_title,
+                   new_start_time = ns, new_end_time = ne, new_color = new_color,
+                   stringsAsFactors = FALSE)
+  overrides <- if (is.null(overrides) || !is.data.frame(overrides) || nrow(overrides) == 0) ov
+               else rbind(overrides[, names(ov), drop = FALSE], ov)
+  list(kind = "override", ai_blocks = ai_blocks, overrides = overrides)
+}

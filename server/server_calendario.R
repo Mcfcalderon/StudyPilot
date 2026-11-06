@@ -199,6 +199,7 @@ output$visual_calendar <- renderUI({
             tags$div(class = paste0("cal-event", ai_class),
               style = bg_style,
               onclick = ev_onclick,
+              `data-start` = start_str,   # inicio original "YYYY-MM-DDTHH:MM" para arrastrar (pomodoro.js)
               tags$div(class = "cal-ev-name", ev$summary),
               tags$div(class = "cal-ev-time", time_label),
               if (nchar(ev_location) > 0) tags$div(class = "cal-ev-room", ev_location)

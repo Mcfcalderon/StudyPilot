@@ -497,7 +497,8 @@ $(function() {
       var timeEl = dragState.el.querySelector('.cal-ev-time');
       var title = nameEl ? nameEl.textContent : '';
       var oldTime = timeEl ? timeEl.textContent : '';
-      var parts = oldTime.split('–');
+      // R escribe "08:00 - 10:00" y este mismo script "08:00 – 10:00": aceptar ambos
+      var parts = oldTime.split(/\s*[–-]\s*/);
       var oldS = (parts[0] || '').trim().split(':');
       var oldE = (parts[1] || '').trim().split(':');
       var durMin = 60;
@@ -505,12 +506,13 @@ $(function() {
         durMin = (parseInt(oldE[0]) * 60 + parseInt(oldE[1])) - (parseInt(oldS[0]) * 60 + parseInt(oldS[1]));
         if (durMin <= 0) durMin = 60;
       }
-      var endMin = h * 60 + m + durMin;
+      var endMin = Math.min(h * 60 + m + durMin, 23 * 60 + 59);   // no pasar de medianoche
       var newEnd = String(Math.floor(endMin / 60)).padStart(2, '0') + ':' + String(endMin % 60).padStart(2, '0');
       if (timeEl) timeEl.textContent = newStart + ' – ' + newEnd;
       if (window.Shiny && Shiny.setInputValue) {
         Shiny.setInputValue('cal_drag_move', {
-          title: title, new_start: newStart, new_end: newEnd, old_time: oldTime.trim()
+          title: title, new_start: newStart, new_end: newEnd, old_time: oldTime.trim(),
+          old_start: dragState.el.getAttribute('data-start') || ''
         }, {priority: 'event'});
       }
     }
