@@ -43,8 +43,7 @@ observeEvent(input$schedule_extract_btn, {
                  nrow(sched), ' bloques de clase.</div>'))
       }
     }, error = function(e) {
-      err_msg <- e$message
-      if (grepl("429", err_msg)) err_msg <- "Demasiadas solicitudes al API de IA. Espera 1-2 minutos."
+      err_msg <- user_error(e, "schedule_extract")
       shinyjs::html("schedule_status_div",
         paste0('<div class="alert alert-danger py-1 small">', esc(err_msg), '</div>'))
     })
@@ -100,6 +99,10 @@ observeEvent(input$cal_event_click, {
 observeEvent(input$cal_edit_save, {
   ev <- input$cal_event_click
   if (is.null(ev)) return()
+  vr <- validar_rango_horas(input$cal_edit_start, input$cal_edit_end)
+  if (!vr$ok) { showNotification(vr$msg, type = "warning"); return() }
+  new_title <- trimws(if (is.null(input$cal_edit_title)) "" else input$cal_edit_title)
+  if (!nzchar(new_title)) { showNotification("Escribe un titulo", type = "warning"); return() }
   is_ai <- isTRUE(ev$is_ai)
 
   if (is_ai) {
@@ -109,7 +112,7 @@ observeEvent(input$cal_edit_save, {
                          substr(ai_blocks$start, 1, 16) == substr(ev$start, 1, 16))
       if (length(match_idx) > 0) {
         date_part <- substr(ai_blocks$start[match_idx[1]], 1, 10)
-        ai_blocks$summary[match_idx[1]] <- input$cal_edit_title
+        ai_blocks$summary[match_idx[1]] <- new_title
         ai_blocks$start[match_idx[1]]   <- paste0(date_part, "T", input$cal_edit_start, ":00")
         ai_blocks$end[match_idx[1]]     <- paste0(date_part, "T", input$cal_edit_end, ":00")
         ai_blocks$color[match_idx[1]]   <- input$cal_edit_color
@@ -120,7 +123,7 @@ observeEvent(input$cal_edit_save, {
   } else {
     override <- data.frame(
       orig_title = ev$title, orig_start = ev$start,
-      new_title = input$cal_edit_title,
+      new_title = new_title,
       new_start_time = input$cal_edit_start,
       new_end_time   = input$cal_edit_end,
       new_color      = input$cal_edit_color,
@@ -177,6 +180,7 @@ observeEvent(input$cal_edit_delete, {
 observeEvent(input$cal_drag_move, {
   d <- input$cal_drag_move
   if (is.null(d) || is.null(d$title)) return()
+  if (!validar_rango_horas(d$new_start, d$new_end)$ok) return()   # viene del navegador
 
   ai_blocks <- rv_gcal$ai_blocks
   if (!is.null(ai_blocks) && nrow(ai_blocks) > 0) {
@@ -237,7 +241,7 @@ observeEvent(input$gcal_sync, {
       '<div class="alert alert-danger mt-2 small">',
       '<b>No se pudo conectar.</b> Tu calendario debe ser publico.<br>',
       '<span class="text-muted">Ve a Google Calendar &gt; Configuracion &gt; Hacer disponible para el publico</span><br>',
-      '<span class="text-muted small">Error: ', events$error, '</span></div>'))
+      '<span class="text-muted small">', esc(events$error[1]), '</span></div>'))
   } else if (nrow(events) == 0) {
     shinyjs::html("gcal_status_div",
       '<div class="alert alert-warning mt-2 small">No se encontraron eventos.</div>')

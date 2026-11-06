@@ -102,21 +102,22 @@ output$new_act_topics_ui <- renderUI({
 })
 
 observeEvent(input$new_act_save, {
-  if (is.null(input$new_act_name) || nchar(input$new_act_name) == 0) {
-    showNotification("Escribe un nombre para la actividad", type = "warning")
-    return()
-  }
-  act_course <- if (input$new_act_course == "_personal") "_personal" else input$new_act_course
-  temas_new <- input$new_act_topics
   is_cal <- isTRUE(input$new_act_calificada)
-  act_weight <- if (is_cal) input$new_act_weight else 0
-  mg_activity_add(uid(), act_course, input$new_act_type,
-    input$new_act_name, as.character(input$new_act_date),
-    act_weight, input$new_act_notes, temas = temas_new, is_calificada = is_cal)
+  v <- validar_actividad(input$new_act_name, input$new_act_weight, input$new_act_date, is_cal)
+  if (!v$ok) { showNotification(v$msg, type = "warning"); return() }
+  act_course <- if (identical(input$new_act_course, "_personal")) "_personal" else input$new_act_course
+  if (is.null(act_course)) act_course <- "_personal"
+  notes <- if (is.null(input$new_act_notes)) "" else input$new_act_notes
+  ok <- tryCatch({
+    mg_activity_add(uid(), act_course, input$new_act_type, v$name, v$date,
+      v$weight, notes, temas = input$new_act_topics, is_calificada = is_cal)
+    TRUE
+  }, error = function(e) { showNotification(user_error(e, "new_act_save"), type = "error"); FALSE })
+  if (!ok) return()
   # TRIGGER GLOBAL: Dashboard KPIs + Smart Scheduler se enteran
   rv$refresh <- rv$refresh + 1
   removeModal()
-  showNotification(paste0("Actividad \"", input$new_act_name, "\" creada"), type = "message")
+  showNotification(paste0("Actividad \"", v$name, "\" creada"), type = "message")
 })
 
 
@@ -135,9 +136,10 @@ observeEvent(input$act_mark_done, {
     if (s <= nrow(af)) {
       row <- af[s, ]
       aid <- if ("act_id" %in% names(row)) row$act_id else s
-      new_done <- 1L - row$done
-      mg_activity_toggle(uid(), aid, new_done)
-      count <- count + 1
+      new_done <- if (isTRUE(row$done == 1)) 0L else 1L
+      done_ok <- tryCatch({ mg_activity_toggle(uid(), aid, new_done); TRUE },
+        error = function(e) { message("[StudyPilot] act_mark_done: ", conditionMessage(e)); FALSE })
+      if (done_ok) count <- count + 1
     }
   }
   rv$refresh <- rv$refresh + 1
@@ -200,14 +202,19 @@ observeEvent(input$act_edit, {
 
 observeEvent(input$edit_act_save, {
   aid <- rv$editing_act_id
-  # Recalcular la semana a partir de la nueva fecha para mantener todo consistente
-  new_week <- tryCatch(as.integer(date_to_week(as.character(input$edit_act_date))), error = function(e) NULL)
+  if (is.null(aid)) return()
   temas_sel <- input$edit_act_topics
   is_cal <- isTRUE(input$edit_act_calificada)
-  act_weight <- if (is_cal) input$edit_act_weight else 0
-  mg_activity_update(uid(), aid, input$edit_act_name, act_weight,
-    as.character(input$edit_act_date), type = input$edit_act_type,
-    temas = temas_sel, is_calificada = is_cal, week = new_week)
+  v <- validar_actividad(input$edit_act_name, input$edit_act_weight, input$edit_act_date, is_cal)
+  if (!v$ok) { showNotification(v$msg, type = "warning"); return() }
+  # Recalcular la semana a partir de la nueva fecha para mantener todo consistente
+  new_week <- tryCatch(as.integer(date_to_week(v$date)), error = function(e) NULL)
+  ok <- tryCatch({
+    mg_activity_update(uid(), aid, v$name, v$weight, v$date, type = input$edit_act_type,
+      temas = temas_sel, is_calificada = is_cal, week = new_week)
+    TRUE
+  }, error = function(e) { showNotification(user_error(e, "edit_act_save"), type = "error"); FALSE })
+  if (!ok) return()
   # TRIGGER GLOBAL
   rv$refresh <- rv$refresh + 1
   removeModal()
@@ -250,7 +257,8 @@ observeEvent(input$act_delete, {
 
 observeEvent(input$delete_act_confirm, {
   for (aid in rv$deleting_act_ids) {
-    mg_activity_delete(uid(), aid)
+    tryCatch(mg_activity_delete(uid(), aid),
+      error = function(e) message("[StudyPilot] delete_act_confirm: ", conditionMessage(e)))
   }
   # TRIGGER GLOBAL
   rv$refresh <- rv$refresh + 1
