@@ -282,7 +282,8 @@ observeEvent(input$ai_gen_summary, {
     tryCatch({
       response <- ai_generate_summary(text_val, cname)
       if (grepl("^Error al generar", response)) {
-        output$ai_result_content <- renderUI(tags$div(class = "alert alert-danger", response))
+        msg <- user_error(response, "ai_generate_summary")   # el texto trae el error crudo
+        output$ai_result_content <- renderUI(tags$div(class = "alert alert-danger", msg))
       } else {
         mg_note_add(current_uid, cid, response, "Resumen IA")
         isolate({ rv$refresh <- rv$refresh + 1 })
@@ -322,7 +323,8 @@ observeEvent(input$ai_gen_questions2, {
     tryCatch({
       ai_qs <- ai_generate_questions(text_val, cname, n_questions = 8)
       if (!is.null(ai_qs$error)) {
-        output$ai_result_content <- renderUI(tags$div(class = "alert alert-danger", ai_qs$error))
+        msg <- user_error(ai_qs$error, "ai_generate_questions")
+        output$ai_result_content <- renderUI(tags$div(class = "alert alert-danger", msg))
         shinyjs::enable("ai_gen_questions2")
         return()
       }
