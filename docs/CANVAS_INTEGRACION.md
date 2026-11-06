@@ -16,22 +16,37 @@
   "Integraciones aprobadas" → **"+ Nuevo token de acceso"**. Si el botón no aparece o da error,
   el token personal está bloqueado.
 
+### Verificado en UTEC (2026-11-06)
+El alumno **puede** crear tokens (el formulario "Nuevo token de acceso" está habilitado), pero
+**"El plazo máximo de caducidad es de 30 días"**. Consecuencias para el diseño:
+- Con token personal, **el alumno tendría que generar y pegar un token nuevo cada mes**. Sirve
+  para la importación inicial y para sincronizar las notas a demanda, no para una sincronización
+  continua sin fricción.
+- Guardar `expires_at` (`GET /api/v1/users/self` no lo da: pedírselo al alumno o probar el token
+  y, ante un `401`, marcar la conexión como "vencida"). Avisar 3 días antes.
+- Las fechas y entregas, que cambian seguido, conviene leerlas del **feed ICS** (opción A), que
+  no vence.
+- Con este límite, **pedir la Developer Key a TI de UTEC (opción C) pasa a ser prioritario**: con
+  OAuth2 la renovación es automática con `refresh_token`.
+
 ## 2. Opciones, de menos a más pasos para el alumno
 
 | Opción | Pasos del alumno | Qué trae | Requiere a UTEC | Riesgo |
 |---|---|---|---|---|
 | **A. Feed de calendario (ICS)** | copiar 1 enlace (Calendario → "Fuente del calendario") | todas las tareas y exámenes con fecha, de todos los cursos | no | bajo: solo lectura; quien tenga el enlace ve el calendario |
-| **B. Token personal (PAT)** — lo que tiene el plan | crear token y pegarlo (renovar cada ≤ 120 días) | todo lo que ve el alumno (ver §3) | que no lo haya bloqueado | **alto:** el token puede **actuar como el alumno** (entregar, enviar mensajes). Cifrado y solo lectura en el servidor |
+| **B. Token personal (PAT)** — lo que tiene el plan | crear token y pegarlo (**en UTEC: renovar cada ≤ 30 días**) | todo lo que ve el alumno (ver §3) | que no lo haya bloqueado | **alto:** el token puede **actuar como el alumno** (entregar, enviar mensajes). Cifrado y solo lectura en el servidor |
 | **C. OAuth2 (Developer Key)** | botón "Conectar con Canvas" + aceptar | igual que B, con permisos acotados (*scopes*) y renovación automática | **sí:** TI de UTEC debe emitir una Developer Key | bajo: el mejor para producción |
 | D. App LTI 1.3 dentro de Canvas | ninguno | contexto del curso | sí, integración institucional | — demasiado para este proyecto |
 | ~~E. Leer la web de Canvas (scraping / extensión)~~ | — | — | — | frágil y probablemente contra los términos de uso: **descartado** |
 
-**Recomendación:**
-1. Fase 3 de v2 con **B** (como ya está diseñada) **más A como respaldo**: si el token está
-   bloqueado o venció, el alumno pega el feed y al menos llegan las fechas. La app R ya tiene un
-   parser ICS (`R/google_cal.R`), y v2 ya planea uno para Google.
-2. Pedir en paralelo a TI de UTEC una **Developer Key** para pasar a **C**. La interfaz
-   `CanvasAuthProvider` del plan ya lo prevé, así que no habría que reescribir nada.
+**Recomendación (ajustada al límite de 30 días de UTEC):**
+1. Fase 3 de v2 con **B para importar y sincronizar notas a demanda** (cursos, evaluaciones,
+   pesos, notas y temas de una vez) **más A para las fechas en el día a día**, porque el feed no
+   vence. Si el token venció, la app sigue funcionando con el feed y pide un token nuevo solo
+   para "Sincronizar notas". La app R ya tiene un parser ICS (`R/google_cal.R`), y v2 ya planea
+   uno para Google.
+2. **Pedir ya** a TI de UTEC una **Developer Key** para pasar a **C** (conectar una sola vez). La
+   interfaz `CanvasAuthProvider` del plan ya lo prevé, así que no habría que reescribir nada.
 
 ## 3. Leer más que el sílabo (menos pasos y datos más confiables)
 
