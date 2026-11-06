@@ -274,3 +274,23 @@ week_monday <- function(d = Sys.Date()) {
   d <- as.Date(d)
   d - (as.integer(format(d, "%u")) - 1L)
 }
+
+# ============ HTML/JS SEGURO PARA LA GRILLA DEL CALENDARIO ============
+# Color para un atributo style: solo hex (#rgb, #rrggbb, #rrggbbaa); si no, el default.
+safe_css_color <- function(x, default = "#3b82f6") {
+  if (is.null(x) || length(x) != 1 || is.na(x) || !grepl("^#[0-9A-Fa-f]{3,8}$", x)) return(default)
+  x
+}
+
+# onclick de un evento: los datos van como literal JSON (jsonlite escapa comillas, barras y
+# saltos de linea). Antes se pegaba el titulo entre comillas simples con gsub("'", "\'"),
+# que no escapaba nada: un titulo de Google Calendar como  x',a:alert(1),b:'  ejecutaba JS.
+cal_event_onclick <- function(title, start, end, color, is_ai, is_gcal, source, idx) {
+  s1 <- function(v) if (is.null(v) || length(v) != 1 || is.na(v)) "" else as.character(v)
+  payload <- list(title = s1(title), start = s1(start), end = s1(end), color = s1(color),
+                  is_ai = isTRUE(is_ai), is_gcal = isTRUE(is_gcal),
+                  source = if (nzchar(s1(source))) s1(source) else "unknown",
+                  idx = as.integer(idx))
+  paste0("Shiny.setInputValue('cal_event_click',",
+         jsonlite::toJSON(payload, auto_unbox = TRUE), ",{priority:'event'})")
+}

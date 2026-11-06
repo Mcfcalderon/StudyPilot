@@ -101,3 +101,36 @@ test_that("week_monday devuelve el lunes de la semana (lunes a domingo)", {
                                  week_monday(as.Date("2026-05-07")))
   expect_equal(weekdays(as.Date(substr(ev_l$start, 1, 10))), weekdays(as.Date("2026-05-04")))
 })
+
+payload_of <- function(js) {
+  pre <- "Shiny.setInputValue('cal_event_click',"; post <- ",{priority:'event'})"
+  expect_true(startsWith(js, pre)); expect_true(endsWith(js, post))
+  body <- substr(js, nchar(pre) + 1, nchar(js) - nchar(post))
+  expect_true(jsonlite::validate(body))          # todo el medio es UN objeto JSON valido
+  jsonlite::fromJSON(body)
+}
+
+test_that("cal_event_onclick serializa el evento como JSON sin dejar escapar el titulo", {
+  p <- payload_of(cal_event_onclick("Fisica", "2026-05-04T08:00", "2026-05-04T10:00",
+                                    "#2563eb", TRUE, FALSE, "ai", 3L))
+  expect_equal(p$title, "Fisica"); expect_equal(p$start, "2026-05-04T08:00")
+  expect_true(p$is_ai); expect_false(p$is_gcal); expect_equal(p$source, "ai"); expect_equal(p$idx, 3)
+
+  malo <- "x',a:alert(document.cookie),b:'\"</div><script>alert(1)</script>\\\n"
+  js <- cal_event_onclick(malo, "s", "e", "#fff", FALSE, TRUE, NULL, 1)
+  p <- payload_of(js)
+  expect_equal(p$title, malo)                    # llega intacto como texto, sin claves extra
+  expect_setequal(names(p), c("title", "start", "end", "color", "is_ai", "is_gcal", "source", "idx"))
+  expect_false(grepl("\n", js, fixed = TRUE))    # salto de linea escapado
+  expect_equal(p$source, "unknown")
+  expect_equal(payload_of(cal_event_onclick(NA, NULL, "e", "", NA, NA, NA, 1))$title, "")
+})
+
+test_that("safe_css_color solo deja pasar colores hex", {
+  expect_equal(safe_css_color("#2563eb"), "#2563eb")
+  expect_equal(safe_css_color("#FFF"), "#FFF")
+  expect_equal(safe_css_color("red;background:url(x)"), "#3b82f6")
+  expect_equal(safe_css_color(NA), "#3b82f6")
+  expect_equal(safe_css_color(NULL, "#000000"), "#000000")
+  expect_equal(safe_css_color(c("#111", "#222")), "#3b82f6")
+})

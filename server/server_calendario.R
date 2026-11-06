@@ -178,21 +178,16 @@ output$visual_calendar <- renderUI({
                            pink = "#ec4899", red = "#ef4444", yellow = "#eab308", gray = "#94a3b8",
                            purple = "#8b5cf6", teal = "#14b8a6", indigo = "#6366f1")
           if (tolower(clr) %in% names(clr_hex_map)) clr <- clr_hex_map[tolower(clr)]
+          clr <- safe_css_color(unname(clr))   # va dentro de style=""
 
           is_ai   <- isTRUE(ev$is_ai)
           ai_class <- if (is_ai) " cal-ev-ai" else ""
           ev_location <- if (!is.null(ev$location) && !is.na(ev$location)) ev$location else ""
           is_gcal <- isTRUE(!is.null(ev$source) && ev$source == "gcal")
 
-          # CRUD (#2): TODOS los eventos son clickeables
-          ev_onclick <- paste0(
-            "Shiny.setInputValue('cal_event_click',{title:'",
-            gsub("'", "\\'", ev$summary), "',start:'", start_str, "',end:'", end_str,
-            "',color:'", clr, "',is_ai:", if (is_ai) "true" else "false",
-            ",is_gcal:", if (is_gcal) "true" else "false",
-            ",source:'", if (!is.null(ev$source)) ev$source else "unknown",
-            "',idx:", k, "},{priority:'event'})"
-          )
+          # CRUD (#2): TODOS los eventos son clickeables (datos como JSON, ver R/calendar_events.R)
+          ev_onclick <- cal_event_onclick(ev$summary, start_str, end_str, clr, is_ai, is_gcal,
+                                          ev$source, k)
 
           bg_style <- paste0(
             "top:", top_px, "px;height:", height_px, "px;width:", evt_width, ";left:", evt_left, ";",
